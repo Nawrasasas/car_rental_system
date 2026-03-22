@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract #{{ rental.id }} - {{ rental.customer.full_name }}</title>
+    
+    <!-- تحسين الخطوط الحديثة -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            line-height: 1.5;
+            color: #1f2937;
+            margin: 0;
+            padding: 40px;
+            background-color: #f8fafc;
+        }
+        .contract-wrapper {
+            max-width: 900px;
+            margin: auto;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 30px;
+            background-color: #ffffff;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+            position: relative;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* Header Section */
+        .header-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #0f172a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .agency-logo-box {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .logo-img {
+            max-height: 55px;
+            width: auto;
+            transition: transform 0.2s ease-in-out;
+        }
+        .logo-img:hover {
+            transform: scale(1.05);
+        }
+        .contract-title-box {
+            text-align: right;
+        }
+        .header-main h1 {
+            color: #0f172a;
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .header-main p {
+            margin: 3px 0 0 0;
+            font-weight: 500;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        /* Section Titles */
+        h3 {
+            background: #e0e7ff;
+            color: #1e3a8a;
+            padding: 10px 12px;
+            border-left: 5px solid #2563eb;
+            font-size: 16px;
+            margin-top: 30px;
+            text-transform: uppercase;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 14px;
+            transition: background 0.2s ease;
+        }
+        th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            width: 25%;
+        }
+        td {
+            color: #374151;
+        }
+        tr:hover td {
+            background-color: #f9fafb;
+        }
+
+        .balance-red {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        /* Signature Section */
+        .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .sig-box {
+            text-align: center;
+            width: 45%;
+            border-top: 2px solid #0f172a;
+            padding-top: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 14px;
+        }
+
+        /* Print Button */
+        .no-print {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .btn-print {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 35px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-print:hover {
+            background: #1e40af;
+            transform: translateY(-2px);
+        }
+
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; background-color: #fff; }
+            .contract-wrapper { border: none; box-shadow: none; }
+            h3 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">Print Contract (PDF)</button>
+    </div>
+
+    <div class="contract-wrapper">
+        <div class="header-main">
+            <div class="agency-logo-box">
+                <img src="/static/images/sixt_logo.png" alt="Sixt Agency" class="logo-img">
+                <img src="/static/images/muhanad_logo.png" alt="Muhanad Agency" class="logo-img">
+            </div>
+            <div class="contract-title-box">
+                <h1>RENTAL AGREEMENT</h1>
+                <p><strong>Erbil Branch Office | Agent ID: {{ rental.created_by.id }}</strong></p>
+            </div>
+        </div>
+
+        <h3>1. CUSTOMER INFORMATION</h3>
+        <table>
+            <tr>
+                <th>Full Name</th>
+                <td>{{ rental.customer.full_name }}</td>
+                <th>Passport/ID</th>
+                <td>{{ rental.customer.passport_number|default:"---" }}</td>
+            </tr>
+            <tr>
+                <th>Mobile Number</th>
+                <td>{{ rental.customer.phone }}</td>
+                <th>Nationality</th>
+                <td>{{ rental.customer.nationality|default:"---" }}</td>
+            </tr>
+            <tr>
+                <th>License No</th>
+                <td>{{ rental.customer.license_number }}</td>
+                <th>Email</th>
+                <td>{{ rental.customer.email|default:"---" }}</td>
+            </tr>
+        </table>
+
+        <h3>2. VEHICLE & RENTAL DETAILS</h3>
+        <table>
+            <tr>
+                <th>Vehicle</th>
+                <td>{{ rental.vehicle.brand }} {{ rental.vehicle.model }}</td>
+                <th>Plate Number</th>
+                <td>{{ rental.vehicle.plate_number }}</td>
+            </tr>
+            <tr>
+                <th>Pickup (Time)</th>
+                <td><strong>{{ rental.start_date|date:"Y-m-d H:i" }}</strong></td>
+                <th>Return (Time)</th>
+                <td><strong>{{ rental.end_date|date:"Y-m-d H:i" }}</strong></td>
+            </tr>
+            <tr>
+                <th>Rental Period</th>
+                <td>{{ rental.rental_days }} Days</td>
+                <th>Auto Renew</th>
+                <td>{% if rental.auto_renew %}Yes (Monthly){% else %}No{% endif %}</td>
+            </tr>
+        </table>
+
+        <h3>3. FINANCIAL SUMMARY (USD)</h3>
+        <table>
+            <tr>
+                <th>Daily Rate</th>
+                <td>${{ rental.daily_rate }}</td>
+                <th>Fines & Others</th>
+                <td>${{ rental.traffic_fines }}</td>
+            </tr>
+            <tr>
+                <th>VAT ({{ rental.vat_percentage }}%)</th>
+                <td>Included</td>
+                <th>Net Total</th>
+                <td><strong>${{ rental.net_total }}</strong></td>
+            </tr>
+            <tr>
+                <th>Total Paid</th>
+                <td style="color: #16a34a; font-weight: bold;">${{ rental.total_paid }}</td>
+                <th>Balance Due</th>
+                <td class="balance-red">${{ rental.remaining_amount }}</td>
+            </tr>
+        </table>
+
+        <div class="signature-section">
+            <div class="sig-box">Customer Signature</div>
+            <div class="sig-box">
+                Issued By: {{ rental.created_by.get_full_name|default:rental.created_by.username }}
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #6b7280;">
+            Erbil Governorate, Iraq - Sixt Muhanad Agency | COMPUTER-GENERATED DOCUMENT
+        </div>
+    </div>
+
+</body>
+</html>

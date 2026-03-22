@@ -1,0 +1,170 @@
+/* =========================================================
+   إضافات خاصة بالسيارات فقط
+   1) ألوان الحالات الجديدة في الفلاتر
+   2) تنسيق معاينة مرفقات الـ inline قبل الحفظ
+   هذا الملف يُحمّل بعد admin_custom.css
+   ========================================================= */
+
+
+/* =========================
+
+   Vehicle Documents Gallery
+   ========================= */
+
+/* الحاوية العامة للمعرض */
+.vehicle-documents-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+/* كل مرفق يظهر كبطاقة */
+.vehicle-document-card {
+    width: 240px;
+    min-width: 240px;
+    margin: 0 !important;
+}
+
+/* إخفاء النموذج الفارغ الخاص بالإضافة حتى يستخدمه Django داخليًا فقط */
+.vehicle-document-card.empty-form {
+    display: none;
+}
+
+/* البنية الداخلية للبطاقة */
+.vehicle-document-card-inner {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* صورة المرفق الحالية بعد الحفظ */
+.vehicle-current-file {
+    margin-bottom: 10px;
+}
+
+.vehicle-current-image-link {
+    display: block;
+    text-decoration: none;
+    cursor: zoom-in;
+}
+
+.vehicle-current-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    display: block;
+}
+
+.vehicle-current-file-link {
+    display: inline-block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    word-break: break-word;
+}
+
+/* صفوف الحقول داخل البطاقة */
+.vehicle-document-card .form-row {
+    margin-bottom: 12px;
+}
+
+.vehicle-document-card .form-row label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+}
+
+/* حقل رفع الملف */
+.vehicle-document-card input[type="file"] {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px;
+    background: #f8fafc;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* حقل الوصف */
+.vehicle-document-card input[type="text"],
+.vehicle-document-card textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* صندوق معاينة الصورة قبل الحفظ */
+.vehicle-inline-preview-box {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.vehicle-inline-preview-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vehicle-inline-preview-link {
+    display: inline-block;
+    text-decoration: none;
+    cursor: zoom-in;
+}
+
+.vehicle-inline-preview-image {
+    display: block;
+    width: 100%;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+
+.vehicle-inline-preview-note {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.vehicle-inline-preview-box.has-image {
+    border-style: solid;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* سطر الحذف */
+.vehicle-delete-row {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
+}
+
+.vehicle-delete-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+/* زر إضافة مرفق جديد */
+#documents-group .add-row,
+[id$="-group"] .add-row {
+    margin-top: 12px;
+}

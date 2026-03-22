@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    
+    <link rel="stylesheet" type="text/css" href="{% static 'css/admin_custom.css' %}?v=2">
+{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">Muhannad Car Rental</a>
+    </h1>
+{% endblock %}

@@ -1,0 +1,845 @@
+/* 1. استيراد الخط العالمي (إضافة في أول السطر) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* 1. الشريط العلوي (الهيدر) - لون كحلي ملكي عميق */
+#header {
+    background: #0f172a !important; /* لون Slate 900 فخم جداً */
+    border-bottom: 1px solid #1e293b !important;
+    padding: 12px 20px !important;
+}
+
+/* 2. اسم الموقع في الهيدر */
+#branding h1 {
+    color: #f8fafc !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+}
+
+/* 3. خلفية عناوين التطبيقات (التي كانت أزرق باهت) */
+.module h2, .module caption, #changelist-filter h2 {
+    background: #1e293b !important; /* كحلي أفتح قليلاً من الهيدر */
+    color: #f1f5f9 !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    border-radius: 4px 4px 0 0 !important; /* زوايا علوية ناعمة */
+    padding: 10px 15px !important;
+}
+
+/* 4. تحسين لون الروابط في الهيدر (Welcome, Admin) */
+#user-tools a {
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+}
+
+#user-tools a:hover {
+    color: #ffffff !important;
+}
+
+/* 2. تغيير الخط للبرنامج بالكامل دون المساس بالتنسيقات الأخرى */
+html, body, div, span, h1, h2, h3, p, a, th, td, label, input, select {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* 3. تحسين شكل القائمة الجانبية اليسرى (طبيعي في Light + صحيح في Dark) */
+#nav-sidebar {
+    background-color: #ffffff !important;
+}
+
+#nav-sidebar .module th {
+    background: #f8fafc !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    font-size: 11px !important;
+    letter-spacing: 0.5px !important;
+}
+
+#nav-sidebar .module td a:hover {
+    background: #f1f5f9 !important;
+    color: #2563eb !important;
+    border-radius: 6px;
+}
+
+/* عند تفعيل Dark Mode من المتصفح */
+@media (prefers-color-scheme: dark) {
+    #nav-sidebar {
+        background-color: #0b0f14 !important;
+        border-right: 1px solid #1f2937 !important;
+    }
+
+    #nav-filter {
+        background: #111827 !important;
+        color: #f9fafb !important;
+        border: 1px solid #374151 !important;
+    }
+
+    #nav-sidebar .module,
+    #nav-sidebar table,
+    #nav-sidebar tbody,
+    #nav-sidebar tr,
+    #nav-sidebar th,
+    #nav-sidebar td {
+        background: transparent !important;
+        border-color: #1f2937 !important;
+    }
+
+    #nav-sidebar .module th,
+    #nav-sidebar .module caption,
+    #nav-sidebar .module h2 {
+        background: #0f172a !important;
+        color: #e5e7eb !important;
+    }
+
+    #nav-sidebar a,
+    #nav-sidebar a:link,
+    #nav-sidebar a:visited {
+        color: #e5e7eb !important;
+    }
+
+    #nav-sidebar td a,
+    #nav-sidebar th a {
+        background: transparent !important;
+        color: #e5e7eb !important;
+    }
+
+    #nav-sidebar .module td a:hover,
+    #nav-sidebar .module th a:hover {
+        background: #1f2937 !important;
+        color: #ffffff !important;
+    }
+
+    #nav-sidebar td .addlink,
+    #nav-sidebar td a.addlink {
+        color: #22c55e !important;
+    }
+}
+/* --- واجهة الفلترة الاحترافية (Modern Enterprise UI) --- */
+
+/* 1. تنسيق الصندوق الجانبي بالكامل */
+#changelist-filter {
+    background-color: #fcfcfc !important;
+    border-left: none !important;
+    padding: 15px !important;
+    box-shadow: inset 2px 0 5px rgba(0,0,0,0.02);
+}
+
+/* 2. تحويل العناوين (By Status, By City) إلى شكل فخم */
+#changelist-filter h3 {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+    color: #1a2a6c !important; /* لون كحلي ملكي */
+    background: #f0f2f5 !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    margin: 20px 0 10px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* إضافة أيقونة سهم صغيرة قبل كل عنوان */
+#changelist-filter h3::before {
+    content: '▼';
+    font-size: 8px;
+    margin-right: 8px;
+    opacity: 0.6;
+}
+
+/* 3. تنسيق الأزرار (Pills) بلمسة عصرية */
+#changelist-filter li a {
+    background: #ffffff !important;
+    color: #555 !important;
+    border: 1px solid #edf2f7 !important;
+    display: block !important;
+    padding: 10px 15px !important;
+    margin: 6px 0 !important;
+    border-radius: 12px !important; /* زوايا أنعم */
+    text-decoration: none !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+}
+
+/* 4. الألوان الذكية (الحواف السميكة والنص الملون) */
+
+/* Available */
+#changelist-filter li a[href*="available"] {
+    border-left: 5px solid #28a745 !important;
+}
+#changelist-filter li.selected a[href*="available"] {
+    background: #28a745 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* Rented */
+#changelist-filter li a[href*="rented"] {
+    border-left: 5px solid #dc3545 !important;
+}
+#changelist-filter li.selected a[href*="rented"] {
+    background: #dc3545 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
+}
+
+/* Maintenance */
+#changelist-filter li a[href*="maintenance"] {
+    border-left: 5px solid #ffc107 !important;
+}
+#changelist-filter li.selected a[href*="maintenance"] {
+    background: #ffc107 !important;
+    color: #222 !important;
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3) !important;
+}
+
+/* Service */
+#changelist-filter li a[href*="service"] {
+    border-left: 5px solid #17a2b8 !important;
+}
+#changelist-filter li.selected a[href*="service"] {
+    background: #17a2b8 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3) !important;
+}
+/* =========================
+   Additional Vehicle Statuses
+   ========================= */
+
+/* Stolen */
+#changelist-filter li a[href*="status__exact=stolen"] {
+    border-left: 5px solid #000000 !important;
+}
+#changelist-filter li.selected a[href*="status__exact=stolen"] {
+    background: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30) !important;
+    border-color: #000000 !important;
+}
+
+/* Out of Service */
+#changelist-filter li a[href*="status__exact=out_of_service"] {
+    border-left: 5px solid #94a3b8 !important;
+}
+#changelist-filter li.selected a[href*="status__exact=out_of_service"] {
+    background: #94a3b8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(148, 163, 184, 0.30) !important;
+    border-color: #94a3b8 !important;
+}
+
+/* Accident */
+#changelist-filter li a[href*="status__exact=accident"] {
+    border-left: 5px solid #ef4444 !important;
+}
+#changelist-filter li.selected a[href*="status__exact=accident"] {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30) !important;
+    border-color: #ef4444 !important;
+}
+
+/* Sold */
+#changelist-filter li a[href*="status__exact=sold"] {
+    border-left: 5px solid #475569 !important;
+}
+#changelist-filter li.selected a[href*="status__exact=sold"] {
+    background: #475569 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.30) !important;
+    border-color: #475569 !important;
+}
+
+/* لما تكون الحالة الجديدة مفعلة، تتبعها بقية الأقسام بنفس اللون */
+body[class*="status__exact=stolen"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+body[class*="status__exact=out_of_service"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #94a3b8 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+body[class*="status__exact=accident"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+body[class*="status__exact=sold"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #475569 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+/* 5. زر "All" والمدن عند الاختيار */
+#changelist-filter li.selected a:not([href*="status"]) {
+    background: #1a2a6c !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(26, 42, 108, 0.3) !important;
+}
+
+/* تأثير عند تمرير الماوس فوق أي زر */
+#changelist-filter li a:hover {
+    transform: translateX(5px);
+    background: #f8f9fa !important;
+    border-color: #cbd5e0 !important;
+}
+/* ============================= */
+/* Rental Status Filter Styling  */
+/* ============================= */
+
+/* Active = Orange */
+#changelist-filter li a[href*="rental_status=active"] {
+    border-left: 5px solid #f59e0b !important;
+}
+#changelist-filter li.selected a[href*="rental_status=active"] {
+    background: #f59e0b !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.30) !important;
+    border-color: #f59e0b !important;
+}
+
+/* Completed = Green */
+#changelist-filter li a[href*="rental_status=completed"] {
+    border-left: 5px solid #22c55e !important;
+}
+#changelist-filter li.selected a[href*="rental_status=completed"] {
+    background: #22c55e !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.30) !important;
+    border-color: #22c55e !important;
+}
+
+/* Cancelled = Dark Gray */
+#changelist-filter li a[href*="rental_status=cancelled"] {
+    border-left: 5px solid #334155 !important;
+}
+#changelist-filter li.selected a[href*="rental_status=cancelled"] {
+    background: #334155 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(51, 65, 85, 0.30) !important;
+    border-color: #334155 !important;
+}
+
+/* Overdue = Red */
+#changelist-filter li a[href*="rental_status=overdue"] {
+    border-left: 5px solid #ef4444 !important;
+}
+#changelist-filter li.selected a[href*="rental_status=overdue"] {
+    background: #ef4444 !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30) !important;
+    border-color: #ef4444 !important;
+}
+
+/* 2. الربط الذكي: جعل بقية الفلاتر (مثل All أو الديون) تتبع لون الحالة النشطة */
+
+/* إذا كان العقد "نشط" -> أي خيار مختار آخر يقلب أورانج */
+body[class*="status__exact=active"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #f59e0b !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* إذا كان العقد "مكتمل" -> أي خيار مختار آخر يقلب أخضر */
+body[class*="status__exact=completed"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #28a745 !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* إذا كان العقد "ملغي" -> أي خيار مختار آخر يقلب أحمر */
+body[class*="status__exact=cancelled"] #changelist-filter li.selected a:not([href*="status__exact"]) {
+    background: #dc3545 !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* 3. تنسيق افتراضي لخيار All والديون في حال لم يتم اختيار حالة عقد بعد */
+#changelist-filter li.selected a[href*="has_balance"], 
+#changelist-filter li.selected a:not([href*="status"]):not([href*="has_balance"]) {
+    background: #1a2a6c !important; /* الكحلي الملكي اللي في كودك الأصلي */
+    color: white !important;
+}
+/* تعطيل الضغط على عناوين التطبيقات الرئيسية (ذات الخلفية الكحلية) لمنع فتح الصفحة الوسيطة */
+#content-main a.section,
+#nav-sidebar a.section,
+caption a.section {
+    pointer-events: none !important;
+    cursor: default !important;
+    text-decoration: none !important;
+}/* --- تحسين شريط الحفظ السفلي في كافة التطبيقات --- */
+
+
+
+
+
+/* 2. تكبير الأزرار بداخل الشريط */
+#content-main .submit-row input[type=submit],
+#content-main .submit-row a,
+#content-main .submit-row button {
+    padding: 12px 24px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    height: auto !important;
+    border: none !important;
+    margin: 0 !important;
+}
+
+/* 3. زر الحفظ الرئيسي (أخضر) */
+#content-main .submit-row input.default {
+    background-color: #22c55e !important;
+    background-image: none !important;
+    color: #ffffff !important;
+}
+#content-main .submit-row input.default:hover {
+    background-color: #16a34a !important;
+}
+
+/* 4. الأزرار الثانوية (كحلي) */
+#content-main .submit-row input:not(.default) {
+    background-color: #1e293b !important;
+    background-image: none !important;
+    color: #ffffff !important;
+}
+#content-main .submit-row input:not(.default):hover {
+    background-color: #0f172a !important;
+}
+
+/* 5. زر الحذف (أحمر) */
+#content-main .submit-row p.deletelink-box a.deletelink {
+    background-color: #ef4444 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    display: inline-block !important;
+}
+#content-main .submit-row p.deletelink-box a.deletelink:hover {
+    background-color: #dc2626 !important;
+}
+/* --- تصميم أزرار أعلى الصفحة (ADD / IMPORT) --- */
+
+/* إزالة التدرج الرمادي الافتراضي من Django */
+.object-tools a {
+    background-image: none !important;
+    border-radius: 6px !important;
+    padding: 10px 16px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    color: #ffffff !important;
+}
+
+/* زر ADD (إنشاء عنصر جديد) */
+.object-tools a.addlink {
+    background-color: #22c55e !important; /* أخضر احترافي */
+}
+
+.object-tools a.addlink:hover {
+    background-color: #16a34a !important;
+}
+
+/* زر IMPORT */
+.object-tools a[href*="import"] {
+    background-color: #2563eb !important; /* أزرق */
+}
+
+.object-tools a[href*="import"]:hover {
+    background-color: #1d4ed8 !important;
+}
+
+/* تأثير عند مرور الماوس */
+.object-tools a:hover {
+    background-color: #1d4ed8 !important;
+}
+/* زر EXPORT */
+.object-tools a[href*="export"] {
+    background-color: #64748b !important; /* رمادي احترافي */
+}
+
+.object-tools a[href*="export"]:hover {
+    background-color: #475569 !important;
+}
+/* =========================
+   تحسينات Modern SaaS Dashboard
+   إضافات فقط - لا حذف أي شيء
+========================= */
+
+/* Light / Dark Mode */
+body.dark-mode {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode #header {
+    background-color: #0f172a !important;
+}
+
+body.dark-mode #nav-sidebar {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .module, 
+body.dark-mode .card {
+    background-color: #1f2937 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+}
+
+/* Cards & Modules Hover Effects */
+.module, .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.module:hover, .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+/* Tables Hover Effects */
+table tbody tr {
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+table tbody tr:hover {
+    background-color: #f1f5f9 !important;
+}
+
+/* عند تفعيل Dark Mode من المتصفح */
+@media (prefers-color-scheme: dark) {
+    table tbody tr:hover,
+    table tbody tr:hover td,
+    table tbody tr:hover th {
+        background-color: #1f2937 !important;
+        color: #f9fafb !important;
+    }
+
+    table tbody tr:hover a {
+        color: #93c5fd !important;
+    }
+
+    table tbody tr:hover input,
+    table tbody tr:hover select,
+    table tbody tr:hover textarea {
+        background-color: #111827 !important;
+        color: #f9fafb !important;
+        border-color: #374151 !important;
+    }
+}
+
+/* هذا يبقى فقط إذا كنت تستخدم dark-mode class يدويًا */
+body.dark-mode table tbody tr:hover,
+body.dark-mode table tbody tr:hover td,
+body.dark-mode table tbody tr:hover th {
+    background-color: #374151 !important;
+    color: #f9fafb !important;
+}
+
+body.dark-mode table tbody tr:hover a {
+    color: #93c5fd !important;
+}
+/* Buttons Smooth Transitions */
+.object-tools a, #content-main .submit-row input[type=submit], .btn {
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* Sidebar Responsive (Drawer) */
+@media (max-width: 768px) {
+    #nav-sidebar {
+        position: fixed;
+        left: -250px;
+        top: 0;
+        width: 250px;
+        height: 100%;
+        z-index: 999;
+        transition: left 0.3s ease;
+    }
+
+    body.sidebar-open #nav-sidebar {
+        left: 0;
+    }
+}
+
+/* Animations for numbers update (rental calculation) */
+.field-net_total .readonly,
+.field-rental_days .readonly {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Light / Dark Mode Toggle Button Styles */
+#dark-mode-toggle {
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background-color: #2563eb;
+    color: white;
+    font-weight: 500;
+    margin-left: 10px;
+    font-size: 12px;
+}
+
+/* =========================================
+   FIX Chrome Dark Mode (بدون كسر الوضع العادي)
+   ========================================= */
+
+/* نقول للمتصفح: أنا أدعم light و dark */
+:root {
+    color-scheme: light dark;
+}
+
+/* نمنع Chrome من العبث بالألوان */
+html,
+body,
+#header,
+#nav-sidebar,
+#content,
+#content-main,
+.module,
+.inline-group,
+div.breadcrumbs,
+input,
+textarea,
+select,
+button,
+table,
+thead,
+tbody,
+tr,
+th,
+td {
+    forced-color-adjust: none;
+}
+/* =========================================
+   Dark mode fixes for changelist filter sidebar
+   ========================================= */
+
+@media (prefers-color-scheme: dark) {
+    /* صندوق الفلاتر كاملًا */
+    #changelist-filter {
+        background-color: #0b0f14 !important;
+        border-left: 1px solid #1f2937 !important;
+        box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    /* عنوان FILTER */
+    #changelist-filter h2 {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        border-radius: 6px 6px 0 0 !important;
+    }
+
+    /* عناوين المجموعات مثل By Branch / City */
+    #changelist-filter h3 {
+        background: transparent !important;
+        color: #94a3b8 !important;
+    }
+
+    #changelist-filter h3::before {
+        color: #60a5fa !important;
+    }
+
+    /* روابط الفلاتر العادية */
+    #changelist-filter li a {
+        background: #111827 !important;
+        color: #e5e7eb !important;
+        border: 1px solid #374151 !important;
+        box-shadow: none !important;
+    }
+
+    /* مرور الماوس */
+    #changelist-filter li a:hover {
+        background: #1f2937 !important;
+        color: #ffffff !important;
+        border-color: #4b5563 !important;
+        transform: translateX(5px);
+    }
+
+    /* الخيار المختار العام
+   نستثني أيضًا حالات السيارة الجديدة حتى لا تتحول للأزرق */
+#changelist-filter li.selected a:not([href*="available"]):not([href*="rented"]):not([href*="maintenance"]):not([href*="service"]):not([href*="stolen"]):not([href*="out_of_service"]):not([href*="accident"]):not([href*="sold"]):not([href*="rental_status="]) {
+    background: #1e3a8a !important;
+    color: #ffffff !important;
+    border-color: #1e3a8a !important;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.35) !important;
+}
+
+    /* All المختار */
+    #changelist-filter li.selected a[href$="?"],
+    #changelist-filter li.selected a[href*="&"],
+    #changelist-filter li.selected a[href*="all"] {
+        color: #ffffff !important;
+    }
+
+    /* show counts */
+    #changelist-filter details,
+    #changelist-filter summary {
+        color: #cbd5e1 !important;
+        background: transparent !important;
+    }
+
+    /* الخطوط الفاصلة */
+    #changelist-filter hr,
+    #changelist-filter ul,
+    #changelist-filter li {
+        border-color: #1f2937 !important;
+    }
+}
+/* --- جعل صفوف العقود تبدو قابلة للضغط --- */
+#result_list tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+/* --- تمييز الصف عند المرور عليه --- */
+#result_list tbody tr:hover {
+    cursor: pointer;
+}
+/* =========================
+   Rental Payment Summary
+   ========================= */
+
+.rental-payment-summary {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 10px 0 18px 0;
+    max-width: 420px;
+}
+
+.rental-payment-summary__title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #0f172a;
+}
+
+/* الصف: نضيف محاذاة ومسافة بين الاسم والقيمة */
+.rental-payment-summary__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* آخر صف يبقى كما هو */
+.rental-payment-summary__row--last {
+    padding: 8px 0 0 0;
+    border-bottom: 0;
+}
+
+/* الاسم: يأخذ المساحة المتاحة ويترك فراغًا قبل المبلغ */
+.rental-payment-summary__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 12px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* الاسم العريض يبقى عريضًا */
+.rental-payment-summary__label--strong {
+    font-weight: 700;
+}
+
+/* القيمة: تبقى على اليمين ولا تلتصق بالاسم */
+.rental-payment-summary__value {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.rental-payment-summary__value--paid {
+    color: #16a34a;
+    font-weight: 700;
+}
+
+.rental-payment-summary__value--remaining {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+    .rental-payment-summary {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .rental-payment-summary__title,
+    .rental-payment-summary__label,
+    .rental-payment-summary__value {
+        color: #f9fafb;
+    }
+
+    .rental-payment-summary__row {
+        border-bottom-color: #374151;
+    }
+
+    .rental-payment-summary__value--paid {
+        color: #22c55e;
+    }
+
+    .rental-payment-summary__value--remaining {
+        color: #f87171;
+    }
+}
+/* =========================================
+   Django Messages (success / error) - Dark Mode Fix
+   ========================================= */
+
+@media (prefers-color-scheme: dark) {
+    /* الصندوق العام */
+    ul.messagelist li {
+        background: #111827 !important;
+        border: 1px solid #374151 !important;
+        color: #e5e7eb !important;
+        border-radius: 10px;
+    }
+
+    /* رسالة الخطأ */
+    ul.messagelist li.error {
+        background: #2a0f0f !important;
+        border: 1px solid #7f1d1d !important;
+        color: #fca5a5 !important;
+    }
+
+    /* رسالة النجاح */
+    ul.messagelist li.success {
+        background: #052e16 !important;
+        border: 1px solid #166534 !important;
+        color: #86efac !important;
+    }
+
+    /* رسالة التحذير */
+    ul.messagelist li.warning {
+        background: #3b2f05 !important;
+        border: 1px solid #a16207 !important;
+        color: #fde68a !important;
+    }
+
+    /* الروابط داخل الرسائل */
+    ul.messagelist li a {
+        color: #93c5fd !important;
+    }
+}
+/* =========================================
+   Payment Summary - Wrapper Reset Only
+   ========================================= */
+
+.form-row.field-payment_summary_box,
+.form-row.field-payment_summary_box > div,
+.form-row.field-payment_summary_box .readonly {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}

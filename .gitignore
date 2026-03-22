@@ -1,0 +1,21 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+
+backups/
+*.zip
+old version/
+
+structure.txt
+structureNew.txt
+Project_tree.txt
+Project_tree1.txt
+New Text Document.txt
+
+staticfiles/
+media/
+
+data.json

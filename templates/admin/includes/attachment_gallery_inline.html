@@ -1,0 +1,90 @@
+{% load i18n admin_urls static admin_modify %}
+
+<div class="js-inline-admin-formset inline-group"
+     id="{{ inline_admin_formset.formset.prefix }}-group"
+     data-inline-type="stacked"
+     data-inline-formset='{"name": "#{{ inline_admin_formset.formset.prefix }}", "options": {"prefix": "{{ inline_admin_formset.formset.prefix }}", "addText": "{% blocktranslate with inline_admin_formset.opts.verbose_name as verbose_name %}Add another {{ verbose_name }}{% endblocktranslate %}", "deleteText": "{% translate "Remove" %}"}}'>
+
+    <fieldset class="module {{ inline_admin_formset.classes }}">
+        <h2>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
+
+        {{ inline_admin_formset.formset.management_form }}
+        {{ inline_admin_formset.formset.non_form_errors }}
+
+        <div class="attachment-gallery">
+            {% for inline_admin_form in inline_admin_formset %}
+                <div class="inline-related attachment-card {% if forloop.last and inline_admin_formset.has_add_permission %}empty-form empty-form-last{% endif %}"
+                     id="{{ inline_admin_formset.formset.prefix }}-{% if forloop.last and inline_admin_formset.has_add_permission %}empty{% else %}{{ forloop.counter0 }}{% endif %}">
+
+                    <div class="attachment-card-inner">
+                        {% if inline_admin_form.form.non_field_errors %}
+                            <div class="errors">
+                                {{ inline_admin_form.form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                                {% for field in line %}
+                                    {% if field.field.name == "file" %}
+                                        <div class="form-row field-file">
+                                            {{ field.errors }}
+                                            <label>{{ field.field.label_tag }}</label>
+
+                                            {% if inline_admin_form.original and inline_admin_form.original.file %}
+                                                <div class="attachment-current-file">
+                                                    {% if inline_admin_form.original.is_image %}
+                                                        <a href="{{ inline_admin_form.original.file_url }}" target="_blank" class="attachment-current-image-link">
+                                                            <img src="{{ inline_admin_form.original.file_url }}"
+                                                                 alt="{{ inline_admin_form.original.filename }}"
+                                                                 class="attachment-current-image">
+                                                        </a>
+                                                    {% else %}
+                                                        <a href="{{ inline_admin_form.original.file_url }}" target="_blank" class="attachment-current-file-link">
+                                                            {{ inline_admin_form.original.filename }}
+                                                        </a>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+
+                                            {{ field.field }}
+                                        </div>
+                                    {% elif field.field.name == "description" %}
+                                        <div class="form-row field-description">
+                                            {{ field.errors }}
+                                            <label>{{ field.field.label_tag }}</label>
+                                            {{ field.field }}
+                                        </div>
+                                    {% else %}
+                                        <div class="form-row">
+                                            {{ field.errors }}
+                                            {{ field.field.label_tag }}
+                                            {{ field.field }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        {% endfor %}
+
+                        {% if inline_admin_form.original %}
+                            {{ inline_admin_form.pk_field.field }}
+                        {% endif %}
+
+                        {% if inline_admin_form.fk_field %}
+                            {{ inline_admin_form.fk_field.field }}
+                        {% endif %}
+
+                        {% if inline_admin_form.deletion_field %}
+                            <div class="attachment-delete-row">
+                                <label class="attachment-delete-label">
+                                    {{ inline_admin_form.deletion_field.field }}
+                                    <span>{% translate "Delete" %}</span>
+                                </label>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </fieldset>
+</div>

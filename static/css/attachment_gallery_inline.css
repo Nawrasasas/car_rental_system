@@ -1,0 +1,211 @@
+/* =========================
+   Generic Attachment Gallery
+   ========================= */
+
+.attachment-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.attachment-card {
+    width: 240px;
+    min-width: 240px;
+    margin: 0 !important;
+}
+
+.attachment-card.empty-form {
+    display: none;
+}
+
+.attachment-card-inner {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.attachment-current-file {
+    margin-bottom: 10px;
+}
+
+.attachment-current-image-link {
+    display: block;
+    text-decoration: none;
+    cursor: zoom-in;
+}
+
+.attachment-current-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    display: block;
+}
+
+.attachment-current-file-link {
+    display: inline-block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    word-break: break-word;
+}
+
+.attachment-card .form-row {
+    margin-bottom: 12px;
+}
+
+.attachment-card .form-row label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.attachment-card input[type="file"] {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px;
+    background: #f8fafc;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.attachment-card input[type="text"],
+.attachment-card textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.attachment-inline-preview-box {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.attachment-inline-preview-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.attachment-inline-preview-link {
+    display: inline-block;
+    text-decoration: none;
+    cursor: zoom-in;
+}
+
+.attachment-inline-preview-image {
+    display: block;
+    width: 100%;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+
+.attachment-inline-preview-note {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.attachment-inline-preview-box.has-image {
+    border-style: solid;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.attachment-delete-row {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
+}
+
+.attachment-delete-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #b91c1c;
+    font-weight: 600;
+}
+/* =========================================
+   Attachment Gallery - Dark Mode Fix
+   ========================================= */
+
+@media (prefers-color-scheme: dark) {
+    /* البطاقة نفسها */
+    .attachment-card-inner {
+        background: #111827 !important;
+        border: 1px solid #374151 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30) !important;
+    }
+
+    /* العناوين داخل البطاقة */
+    .attachment-card .form-row label {
+        color: #e5e7eb !important;
+    }
+
+    /* رابط الملف الحالي إن لم يكن صورة */
+    .attachment-current-file-link {
+        background: #0f172a !important;
+        border: 1px solid #374151 !important;
+        color: #e5e7eb !important;
+    }
+
+    /* حقل اختيار الملف */
+    .attachment-card input[type="file"] {
+        background: #0f172a !important;
+        color: #f9fafb !important;
+        border: 1px solid #374151 !important;
+    }
+
+    /* اسم الملف المختار بجانب Choose file */
+    .attachment-card input[type="file"]::file-selector-button {
+        background: #1f2937 !important;
+        color: #ffffff !important;
+        border: 1px solid #4b5563 !important;
+        border-radius: 6px !important;
+        padding: 6px 10px !important;
+        margin-right: 10px !important;
+        cursor: pointer !important;
+    }
+
+    /* حقول النص */
+    .attachment-card input[type="text"],
+    .attachment-card textarea {
+        background: #0b1220 !important;
+        color: #f9fafb !important;
+        border: 1px solid #374151 !important;
+    }
+
+    /* خط الفصل */
+    .attachment-delete-row {
+        border-top: 1px solid #374151 !important;
+    }
+
+    /* سطر الحذف */
+    .attachment-delete-label {
+        color: #f87171 !important;
+    }
+
+    /* صورة المرفق الحالية */
+    .attachment-current-image {
+        background: #0f172a !important;
+        border: 1px solid #374151 !important;
+    }
+}

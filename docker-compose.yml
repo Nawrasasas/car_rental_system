@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: car_rental
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Admin@123
+    ports:
+      - "5432:5432"
