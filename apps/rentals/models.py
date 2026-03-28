@@ -364,7 +364,7 @@ class Rental(models.Model):
             raise ValidationError("This vehicle already has another active rental in the selected period.")
 
     def clean(self):
-        if self.start_date and self.end_date and self.end_date < self.start_date:
+        if self.start_date and self.end_date and self.end_date <= self.start_date:
             raise ValidationError(
                 "Expected return date cannot be earlier than pickup date."
             )
@@ -558,6 +558,7 @@ class Rental(models.Model):
             locked_vehicle = None
             if self.vehicle_id:
                 locked_vehicle = Vehicle.objects.select_for_update().get(pk=self.vehicle_id)
+                self.vehicle = locked_vehicle
 
             # --- التحقق من توفر السيارة قبل الحفظ ---
             self._validate_vehicle_availability(locked_vehicle)
