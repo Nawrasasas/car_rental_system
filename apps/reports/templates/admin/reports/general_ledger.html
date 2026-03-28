@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main" style="margin: 20px;">
+    <h1>GENERAL LEDGER</h1>
+
+    <div style="background: #f8f8f8; padding: 20px; border: 1px solid #ddd; margin-bottom: 20px;">
+        <form method="GET" style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label style="display:block; font-weight:bold;">Account Code:</label>
+                <input type="text" name="account_code" value="{{ request.GET.account_code }}" placeholder="e.g. 1110" style="padding: 8px;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:bold;">From Date:</label>
+                <input type="date" name="start_date" value="{{ request.GET.start_date }}" style="padding: 8px;">
+            </div>
+            <div>
+                <label style="display:block; font-weight:bold;">To Date:</label>
+                <input type="date" name="end_date" value="{{ request.GET.end_date }}" style="padding: 8px;">
+            </div>
+            <button type="submit" style="background: #417690; color: white; border: none; padding: 10px 25px; cursor: pointer; border-radius: 4px; font-weight: bold;">
+                GENERATE REPORT
+            </button>
+        </form>
+    </div>
+
+    {% if ledger_data %}
+    <div class="module" style="background: white; padding: 20px; border: 1px solid #ccc;">
+        <h3>Statement for: {{ ledger_data.account_name }} ({{ ledger_data.account_code }})</h3>
+
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #eee; border-bottom: 2px solid #ccc;">
+                    <th style="padding: 10px; text-align: left;">Date</th>
+                    <th style="padding: 10px; text-align: left;">Entry No.</th>
+                    <th style="padding: 10px; text-align: left;">Description</th>
+                    <th style="padding: 10px; text-align: left;">Source</th>
+                    <th style="padding: 10px; text-align: right;">Debit</th>
+                    <th style="padding: 10px; text-align: right;">Credit</th>
+                    <th style="padding: 10px; text-align: right;">Running Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background: #f0f0f0; font-weight: bold;">
+                    <td colspan="6" style="padding: 10px;">Opening Balance</td>
+                    <td style="padding: 10px; text-align: right;">{{ ledger_data.opening_balance }}</td>
+                </tr>
+
+                {% for line in ledger_data.transactions %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;">{{ line.date }}</td>
+
+                    <td style="padding: 10px;">
+                        {% if line.entry_admin_url %}
+                            <a href="{{ line.entry_admin_url }}" style="font-weight: bold;">
+                                {{ line.entry_number }}
+                            </a>
+                        {% else %}
+                            {{ line.entry_number }}
+                        {% endif %}
+                    </td>
+
+                    <td style="padding: 10px;">{{ line.description }}</td>
+
+                    <td style="padding: 10px;">
+                        {% if line.source_admin_url %}
+                            <a href="{{ line.source_admin_url }}">
+                                {{ line.source_label }}
+                            </a>
+                        {% else %}
+                            {{ line.source_label }}
+                        {% endif %}
+                    </td>
+
+                    <td style="padding: 10px; text-align: right; color: green;">
+                        {{ line.debit }}
+                    </td>
+
+                    <td style="padding: 10px; text-align: right; color: red;">
+                        {{ line.credit }}
+                    </td>
+
+                    <td style="padding: 10px; text-align: right; font-weight: bold;">
+                        {{ line.balance }}
+                    </td>
+                </tr>
+                {% endfor %}
+
+                <tr style="background: #f7f7f7; font-weight: bold;">
+                    <td colspan="6" style="padding: 10px;">Closing Balance</td>
+                    <td style="padding: 10px; text-align: right;">{{ ledger_data.closing_balance }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba;">
+        Please enter an account code and date range to view the ledger.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

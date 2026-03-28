@@ -1,0 +1,59 @@
+.deposit-summary-card {
+    width: 340px;
+    padding: 18px 20px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    margin: 0 0 20px 0;
+}
+
+.deposit-summary-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 14px;
+}
+
+.deposit-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 0;
+    font-size: 18px;
+}
+
+.deposit-summary-row:last-child {
+    border-bottom: none;
+}
+
+.deposit-summary-row span {
+    font-weight: 600;
+    color: #111827;
+}
+
+.deposit-summary-row strong {
+    font-weight: 700;
+    color: #111827;
+}
+
+.deposit-summary-row .refund-value {
+    color: #16a34a;
+}
+
+.deposit-summary-row .remaining-value {
+    color: #dc2626;
+}
+
+.deposit-summary-status {
+    padding-top: 10px;
+}
+
+.status-badge {
+    color: #1e3a8a;
+    background: #dbeafe;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+}

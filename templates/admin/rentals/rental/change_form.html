@@ -1,0 +1,43 @@
+{# PATH: templates/admin/rentals/rental/change_form.html #}
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+    {{ block.super }}
+  
+{% endblock %}
+
+{% block content %}
+    {% if original %}
+        <div class="rental-payment-summary">
+            <div class="rental-payment-summary__title">
+                Payment Summary
+            </div>
+
+            <div class="rental-payment-summary__row">
+                <span class="rental-payment-summary__label">Net Total</span>
+                <span class="rental-payment-summary__value">
+                    ${{ summary_net_total|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="rental-payment-summary__row">
+                <span class="rental-payment-summary__label">Total Paid</span>
+                <span class="rental-payment-summary__value rental-payment-summary__value--paid">
+                    ${{ summary_total_paid|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="rental-payment-summary__row rental-payment-summary__row--last">
+                <span class="rental-payment-summary__label rental-payment-summary__label--strong">
+                    Remaining Balance
+                </span>
+                <span class="rental-payment-summary__value rental-payment-summary__value--remaining">
+                    ${{ summary_remaining_balance|floatformat:2 }}
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    {{ block.super }}
+{% endblock %}

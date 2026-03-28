@@ -1,0 +1,35 @@
+{# PATH: templates/admin/deposits/deposit/change_form.html #}
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block content %}
+    {% if original %}
+        <div class="deposit-summary-card">
+            <div class="deposit-summary-title">Deposit Summary</div>
+
+            <div class="deposit-summary-row">
+                <span>Deposit Amount</span>
+                <strong>${{ original.amount|floatformat:2 }}</strong>
+            </div>
+
+            <div class="deposit-summary-row">
+                <span>Total Refunded</span>
+                <strong class="refund-value">${{ original.refunded_amount|floatformat:2 }}</strong>
+            </div>
+
+            <div class="deposit-summary-row">
+                <span>Remaining Balance</span>
+                <strong class="remaining-value">${{ original.remaining_amount|floatformat:2 }}</strong>
+            </div>
+
+            <div class="deposit-summary-row deposit-summary-status">
+                <span>Status</span>
+                <strong class="status-badge">
+                    {{ original.calculated_status_display }}
+                </strong>
+            </div>
+        </div>
+    {% endif %}
+
+    {{ block.super }}
+{% endblock %}

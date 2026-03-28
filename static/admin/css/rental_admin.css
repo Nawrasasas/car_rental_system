@@ -1,0 +1,50 @@
+.rental-payment-summary {
+    width: 340px;
+    padding: 18px 20px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    margin: 0 0 20px 0;
+}
+
+.rental-payment-summary__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 14px;
+}
+
+.rental-payment-summary__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 0;
+    font-size: 18px;
+}
+
+.rental-payment-summary__row--last {
+    border-bottom: none;
+}
+
+.rental-payment-summary__label {
+    font-weight: 600;
+    color: #111827;
+}
+
+.rental-payment-summary__label--strong {
+    font-weight: 700;
+}
+
+.rental-payment-summary__value {
+    font-weight: 700;
+    color: #111827;
+}
+
+.rental-payment-summary__value--paid {
+    color: #16a34a;
+}
+
+.rental-payment-summary__value--remaining {
+    color: #dc2626;
+}

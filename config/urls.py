@@ -1,9 +1,11 @@
 from core.admin_site import custom_admin_site
 from django.urls import path, include
 from django.conf import settings
+from django.views.generic import TemplateView
 from django.conf.urls.static import static
 
 urlpatterns = [
+    path("", TemplateView.as_view(template_name="public/home.html"), name="home"),
     path("admin/", custom_admin_site.urls),
     path("invoices/", include("apps.invoices.urls")),
     # تأكد أن المسارات تبدأ بـ apps.

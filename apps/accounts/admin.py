@@ -1,7 +1,16 @@
-from django.contrib import admin
-from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from core.admin_site import custom_admin_site
 
-app_models = apps.get_app_config('accounts').get_models()
+User = get_user_model()
 
-for model in app_models:
-    admin.site.register(model)
+try:
+    custom_admin_site.register(User, UserAdmin)
+except Exception:
+    pass
+
+try:
+    custom_admin_site.register(Group, GroupAdmin)
+except Exception:
+    pass

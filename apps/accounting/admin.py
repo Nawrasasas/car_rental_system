@@ -1,8 +1,18 @@
+# PATH: apps/accounting/admin.py
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+# --- حاشية: نحتاج تجميع المصروفات وعدّها حسب السيارة ---
+from django.db.models import Sum, Count
+# --- حاشية: نحتاج صفحة Template داخل الـ admin للتقرير ---
+from django.template.response import TemplateResponse
+# --- حاشية: نحتاج مسار داخلي وزر يفتح صفحة التقرير ---
+from django.urls import path, reverse
 from django.utils.html import format_html
+# --- حاشية: نضيف resources لتعريف Resource خاص بالمصروفات وإظهار زر التصدير ---
+from import_export import resources
 from import_export.admin import ImportExportModelAdmin
-
+# --- حاشية: أضفنا Sum لحساب السيارة الأعلى إجماليًا بالمصاريف داخل الفلتر المخصص ---
+from django.db.models import Sum
 from core.admin_site import custom_admin_site
 from .resources import AccountResource
 from .services import post_expense, post_revenue
@@ -167,6 +177,14 @@ class JournalEntryAdmin(admin.ModelAdmin):
     # الإجراء الجماعي لترحيل القيود.
     actions = ("post_selected_entries",)
 
+    def get_actions(self, request):
+        # --- إزالة الحذف الجماعي الافتراضي لأنه قد يتجاوز delete() في الموديل ---
+        actions = super().get_actions(request)
+        if "delete_selected" in actions:
+            del actions["delete_selected"]
+        return actions
+
+
     def total_debit_display(self, obj):
         # إرجاع مجموع المدين.
         return obj.total_debit
@@ -231,7 +249,9 @@ class JournalEntryAdmin(admin.ModelAdmin):
             old_obj = JournalEntry.objects.get(pk=obj.pk)
             # إذا كان القيد القديم مرحلًا نمنع تعديله.
             if old_obj.state == EntryState.POSTED:
-                raise ValidationError("Posted journal entries cannot be edited.")
+                if form.changed_data:
+                    raise ValidationError("Posted journal entries cannot be edited.")
+                return
         # إذا لم توجد مشكلة نتابع الحفظ الطبيعي.
         super().save_model(request, obj, form, change)
 
@@ -277,8 +297,33 @@ class JournalEntryAdmin(admin.ModelAdmin):
         )        
 
 
+class ExpenseResource(resources.ModelResource):
+    class Meta:
+        model = Expense
+        fields = (
+            "id",
+            "reference",
+            "expense_date",
+            "category",
+            "description",
+            "amount",
+            "payment_method",
+            "vehicle",
+            "branch",
+            "expense_account",
+            "state",
+            "journal_entry",
+        )
+        export_order = fields
+
+
 @admin.register(Expense, site=custom_admin_site)
-class ExpenseAdmin(admin.ModelAdmin):
+class ExpenseAdmin(ImportExportModelAdmin):
+    resource_class = ExpenseResource
+
+    # --- حاشية: هذا القالب يضيف زر تقرير ترتيب السيارات داخل صفحة المصروفات ---
+    change_list_template = "admin/accounting/expense/change_list.html"
+
     # الأعمدة الظاهرة في قائمة المصروفات.
     list_display = (
         "reference",
@@ -287,21 +332,40 @@ class ExpenseAdmin(admin.ModelAdmin):
         "description",
         "amount",
         "payment_method",
+        "vehicle_plate_number",
         "state",
         "journal_entry_link",
     )
-    # الفلاتر الجانبية.
-    list_filter = ("state", "category", "payment_method", "expense_date")
+
+    # --- حاشية: أبقينا فقط الفلاتر العادية لأن الترتيب صار عبر زر تقرير مستقل ---
+    list_filter = (
+        "state",
+        "category",
+        "payment_method",
+        "expense_date",
+    )
+
     # حقول البحث.
-    search_fields = ("reference", "description")
+    search_fields = (
+        "reference",
+        "description",
+        "vehicle__plate_number",
+        "vehicle__brand",
+        "vehicle__model",
+    )
+
     # تفعيل شريط التاريخ.
     date_hierarchy = "expense_date"
+
     # البحث التلقائي في حساب المصروف.
     autocomplete_fields = ("expense_account",)
+
     # المرجع والقيد الناتج حقول آلية للقراءة فقط.
     readonly_fields = ("reference", "journal_entry")
+
     # الإجراء الجماعي للترحيل.
     actions = ("post_selected_expenses",)
+
     # إظهار المرفقات داخل شاشة المصروف.
     inlines = [AttachmentInline]
 
@@ -341,6 +405,86 @@ class ExpenseAdmin(admin.ModelAdmin):
         ),
     )
 
+    # --- حاشية: إضافة رابط admin مخصص لصفحة ترتيب السيارات حسب مجموع المصروفات ---
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "vehicle-expense-ranking/",
+                self.admin_site.admin_view(self.vehicle_expense_ranking_view),
+                name="accounting_expense_vehicle_expense_ranking",
+            ),
+        ]
+        return custom_urls + urls
+
+    # --- حاشية: تمرير رابط التقرير إلى صفحة قائمة المصروفات لإظهار الزر ---
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["vehicle_expense_ranking_url"] = reverse(
+            "admin:accounting_expense_vehicle_expense_ranking"
+        )
+        return super().changelist_view(request, extra_context=extra_context)
+
+    # --- حاشية: صفحة تقرير ترتّب السيارات من الأعلى مصروفًا إلى الأقل ضمن فترة اختيارية ---
+    def vehicle_expense_ranking_view(self, request):
+        # --- حاشية: قراءة تاريخ البداية والنهاية من الرابط ---
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
+        # --- حاشية: نأخذ فقط المصروفات المرتبطة بسيارة ---
+        queryset = Expense.objects.filter(
+            vehicle__isnull=False,
+            state=EntryState.POSTED,
+        )
+
+        # --- حاشية: تطبيق فلترة الفترة إذا تم إدخالها ---
+        if from_date:
+            queryset = queryset.filter(expense_date__gte=from_date)
+
+        if to_date:
+            queryset = queryset.filter(expense_date__lte=to_date)
+
+        # --- حاشية: تجميع المصروفات حسب السيارة وترتيبها من الأعلى إلى الأقل ---
+        ranking = (
+            queryset.values(
+                "vehicle_id",
+                "vehicle__plate_number",
+                "vehicle__brand",
+                "vehicle__model",
+                "vehicle__branch__name",
+            )
+            .annotate(
+                total_expense=Sum("amount"),
+                expense_count=Count("id"),
+            )
+            .order_by("-total_expense", "vehicle__plate_number")
+        )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Vehicle Expense Ranking",
+            "ranking": ranking,
+            "from_date": from_date,
+            "to_date": to_date,
+            "back_url": reverse("admin:accounting_expense_changelist"),
+        }
+
+        return TemplateResponse(
+            request,
+            "admin/accounting/expense/vehicle_expense_ranking.html",
+            context,
+        )
+
+    # --- حاشية: هذه الدالة تعرض رقم السيارة فقط داخل قائمة المصروفات ---
+    def vehicle_plate_number(self, obj):
+        if obj.vehicle_id:
+            return obj.vehicle.plate_number
+        return "-"
+
+    # --- حاشية: اسم العمود الظاهر في صفحة القائمة ---
+    vehicle_plate_number.short_description = "Vehicle No"
+
     def journal_entry_link(self, obj):
         # عند وجود قيد مرتبط نعرض رقمه.
         if obj.journal_entry_id:
@@ -351,16 +495,27 @@ class ExpenseAdmin(admin.ModelAdmin):
     # تسمية عمود القيد.
     journal_entry_link.short_description = "Journal Entry"
 
+    def get_actions(self, request):
+        # --- إزالة الحذف الجماعي الافتراضي لأنه قد يتجاوز delete() في الموديل ---
+        actions = super().get_actions(request)
+        if "delete_selected" in actions:
+            del actions["delete_selected"]
+        return actions
+
     def has_delete_permission(self, request, obj=None):
         # منع حذف المصروف إذا كان مرحلًا.
         if obj and obj.state == EntryState.POSTED:
             return False
-        # خلاف ذلك نرجع إلى السلوك الافتراضي.
         return super().has_delete_permission(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
         # نبدأ من الحقول الأساسية للقراءة فقط.
         base_fields = list(self.readonly_fields)
+
+        # --- حاشية: نقفل state دائمًا من شاشة الفورم ---
+        # --- لأن الترحيل يجب أن يتم فقط من Action الـ Post وليس يدويًا من الشاشة ---
+        if "state" not in base_fields:
+            base_fields.append("state")
 
         # بعد الترحيل تصبح كل حقول المصروف الحساسة للقراءة فقط.
         if obj and obj.state == EntryState.POSTED:
@@ -374,7 +529,6 @@ class ExpenseAdmin(admin.ModelAdmin):
                     "expense_account",
                     "vehicle",
                     "branch",
-                    "state",
                 ]
             )
 
@@ -382,13 +536,27 @@ class ExpenseAdmin(admin.ModelAdmin):
         return tuple(base_fields)
 
     def save_model(self, request, obj, form, change):
-        # عند تعديل مصروف موجود نقرأ حالته القديمة.
-        if change:
-            old_obj = Expense.objects.get(pk=obj.pk)
-            # إذا كان مرحلًا نمنع أي تعديل.
-            if old_obj.state == EntryState.POSTED:
+        # --- حاشية: عند إنشاء مصروف جديد نفرض الحالة دائمًا Draft ---
+        # --- حتى يكون الترحيل لاحقًا فقط عبر Action الـ Post ---
+        if not change:
+            obj.state = EntryState.DRAFT
+            super().save_model(request, obj, form, change)
+            return
+
+        # --- حاشية: عند تعديل مصروف موجود نقرأ النسخة القديمة من قاعدة البيانات ---
+        old_obj = Expense.objects.get(pk=obj.pk)
+
+        # --- حاشية: إذا كان السجل مرحلًا أصلًا نمنع أي تعديل فعلي ---
+        if old_obj.state == EntryState.POSTED:
+            if form.changed_data:
                 raise ValidationError("Posted expenses cannot be edited.")
-        # إذا كان كل شيء سليمًا نتابع الحفظ.
+            return
+
+        # --- حاشية: نمنع أي محاولة لتغيير الحالة يدويًا من شاشة الفورم ---
+        # --- لأن إنشاء القيد يجب أن يمر فقط عبر post_expense داخل Action الـ Post ---
+        obj.state = old_obj.state
+
+        # --- حاشية: الحفظ الطبيعي لبقية الحقول بدون السماح بتغيير state يدويًا ---
         super().save_model(request, obj, form, change)
 
     @admin.action(description="Post selected expenses")
@@ -396,41 +564,31 @@ class ExpenseAdmin(admin.ModelAdmin):
         # عداد لعدد المصروفات المرحلة بنجاح.
         posted_count = 0
 
-        # المرور على العناصر المحددة.
         for expense in queryset:
             try:
-                # إذا كان المصروف مرحلًا نتجاوزه.
                 if expense.state == EntryState.POSTED:
                     continue
-                # محاولة الترحيل.
                 post_expense(expense=expense)
-                # زيادة العداد بعد النجاح.
                 posted_count += 1
             except Exception as exc:
-                # عرض رسالة خطأ واضحة عند الفشل.
                 self.message_user(
                     request,
                     f"Expense {expense.reference} was not posted: {exc}",
                     level=messages.ERROR,
                 )
 
-        # عرض رسالة نجاح بعد اكتمال العملية.
         if posted_count:
             self.message_user(
                 request,
                 f"{posted_count} expense record{' was' if posted_count == 1 else 's were'} posted successfully.",
                 level=messages.SUCCESS,
             )
-    class Media:
-        css = {
-            "all": (
-                "css/attachment_gallery_inline.css",
-            )
-        }
 
-        js = (
-            "js/attachment_gallery_inline.js",
-        )
+    class Media:
+        css = {"all": ("css/attachment_gallery_inline.css",)}
+
+        js = ("js/attachment_gallery_inline.js",)
+
 
 @admin.register(Revenue, site=custom_admin_site)
 class RevenueAdmin(admin.ModelAdmin):
@@ -523,6 +681,13 @@ class RevenueAdmin(admin.ModelAdmin):
         # وإلا نعرض شرطة.
         return "-"
 
+    def get_actions(self, request):
+        # --- إزالة الحذف الجماعي الافتراضي لأنه قد يتجاوز delete() في الموديل ---
+        actions = super().get_actions(request)
+        if "delete_selected" in actions:
+            del actions["delete_selected"]
+        return actions
+
     # تسمية العمود.
     journal_entry_link.short_description = "Journal Entry"
 
@@ -533,11 +698,17 @@ class RevenueAdmin(admin.ModelAdmin):
         # خلاف ذلك نرجع للسلوك الافتراضي.
         return super().has_delete_permission(request, obj)
 
+
     def get_readonly_fields(self, request, obj=None):
         # نبدأ من الحقول الأساسية المقروءة فقط.
         base_fields = list(self.readonly_fields)
 
-        # بعد الترحيل تصبح بقية الحقول المحاسبية والتشغيلية للقراءة فقط.
+        # --- حاشية: نقفل state دائمًا من شاشة الفورم ---
+        # --- حتى يكون الترحيل فقط من Action الـ Post وليس يدويًا ---
+        if "state" not in base_fields:
+            base_fields.append("state")
+
+        # بعد الترحيل تصبح بقية الحقول التشغيلية والمحاسبية للقراءة فقط.
         if obj and obj.state == EntryState.POSTED:
             base_fields.extend(
                 [
@@ -549,11 +720,9 @@ class RevenueAdmin(admin.ModelAdmin):
                     "revenue_account",
                     "vehicle",
                     "branch",
-                    "state",
                 ]
             )
 
-        # إعادة القائمة النهائية.
         return tuple(base_fields)
 
     def save_model(self, request, obj, form, change):

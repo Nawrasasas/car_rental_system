@@ -1,3 +1,4 @@
+# PATH: apps/rentals/models.py
 from datetime import timedelta
 import calendar
 from decimal import Decimal
@@ -128,7 +129,21 @@ class Rental(models.Model):
         default=0.0,
         verbose_name="Tax %",
     )
-
+    # --- مبلغ التأمين المستلم من العميل ---
+    deposit_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Deposit Amount"
+    )
+    deposit_journal_entry = models.OneToOneField(
+        "accounting.JournalEntry",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="rental_deposit",
+        verbose_name="Deposit Journal Entry",
+    )
     # المخالفات المرورية
     traffic_fines = models.DecimalField(
         max_digits=10,
@@ -186,10 +201,23 @@ class Rental(models.Model):
         verbose_name="Created At",
     )
 
+
     class Meta:
         verbose_name = "Rental"
         verbose_name_plural = "Rentals"
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
+
+        # --- صلاحيات مخصصة لعمليات العقد التشغيلية داخل Users / Groups ---
+        permissions = (
+            # --- صلاحية ترحيل العقد محاسبيًا ---
+            ("post_rental", "Can post rental"),
+            # --- صلاحية قبض مبلغ العقد + التأمين من شاشة العقد ---
+            ("collect_contract_and_deposit", "Can collect contract and deposit"),
+            # --- صلاحية قبض المخالفة من شاشة العقد ---
+            ("collect_traffic_fine", "Can collect traffic fine"),
+            # --- صلاحية تنفيذ إرجاع السيارة من شاشة العقد ---
+            ("return_vehicle", "Can return vehicle"),
+        )
 
     @property
     def is_overdue(self):
@@ -263,21 +291,41 @@ class Rental(models.Model):
         if not self.start_date or not self.end_date:
             return 0
 
-        diff = self.end_date - self.start_date
+        # --- نهمل الدقائق والثواني والمايكروثانية ---
+        # --- ونحسب المدة على مستوى الساعة فقط ---
+        start_hour = self.start_date.replace(minute=0, second=0, microsecond=0)
+        end_hour = self.end_date.replace(minute=0, second=0, microsecond=0)
+
+        diff = end_hour - start_hour
         total_seconds = int(diff.total_seconds())
 
-        rental_days = max(1, total_seconds // 86400)
+        # --- أقل عقد يوم واحد ---
+        rental_days = max(1, total_seconds // 86400) 
 
+        # --- إذا بقي جزء من يوم بعد اعتماد الساعة فقط نقرّبه ليوم كامل ---
         if total_seconds % 86400:
             rental_days += 1
 
         return rental_days
 
     def _calculate_net_total(self):
-        # حساب الإجمالي النهائي
+        # --- حساب Net Total النهائي الظاهري ---
+        # --- يشمل كل ما يجب أن يدفعه الزبون بما فيه التأمين ---
         subtotal = Decimal(self.rental_days) * Decimal(self.daily_rate or 0)
         tax_amount = subtotal * (Decimal(self.vat_percentage or 0) / Decimal(100))
-        return (subtotal + tax_amount + Decimal(self.traffic_fines + self.damage_fees + self.other_charges or 0)).quantize(Decimal('0.01'))
+        deposit_amount = Decimal(self.deposit_amount or 0)
+        traffic_fines = Decimal(self.traffic_fines or 0)
+        damage_fees = Decimal(self.damage_fees or 0)
+        other_charges = Decimal(self.other_charges or 0)
+
+        return (
+            subtotal
+            + tax_amount
+            + traffic_fines
+            + damage_fees
+            + other_charges
+            + deposit_amount
+        ).quantize(Decimal("0.01"))
 
     def _has_overlapping_active_rental(self):
         # التحقق من وجود عقد نشط آخر متداخل على نفس السيارة
@@ -470,7 +518,6 @@ class Rental(models.Model):
                 raise ValidationError(
                     "Completed rentals must be closed using the Return Vehicle action."
                 )
-
 
     def save(self, *args, **kwargs):
         # --- إعادة حساب الأيام والإجمالي قبل الحفظ ---

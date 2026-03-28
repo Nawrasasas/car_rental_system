@@ -1,3 +1,4 @@
+# PATH: apps/invoices/models.py
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError

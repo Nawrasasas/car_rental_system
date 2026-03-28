@@ -1,0 +1,28 @@
+{% extends "admin/change_list.html" %}
+{% load admin_list %}
+
+{% block result_list %}
+    {% if dashboard_html %}
+        {{ dashboard_html|safe }}
+    {% endif %}
+    {{ block.super }}
+{% endblock %}
+
+{% block filters %}
+    {% if cl.has_filters %}
+        <nav id="changelist-filter" aria-labelledby="changelist-filter-header">
+            <h2 id="changelist-filter-header">Filter</h2>
+
+            <h3>By Vehicle Expenses</h3>
+            <ul>
+                <li>
+                    <a href="{{ vehicle_expense_ranking_url }}">View Full Ranking</a>
+                </li>
+            </ul>
+
+            {% for spec in cl.filter_specs %}
+                {% admin_list_filter cl spec %}
+            {% endfor %}
+        </nav>
+    {% endif %}
+{% endblock %}

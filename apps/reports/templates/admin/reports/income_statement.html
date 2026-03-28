@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main" style="max-width: 900px; margin: 20px auto;">
+    <div style="background: white; padding: 25px; border: 1px solid #ccc; border-top: 4px solid #417690; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <h1 style="text-align: center; color: #417690;">INCOME STATEMENT</h1>
+        <p style="text-align: center; color: #666; border-bottom: 2px solid #eee; padding-bottom: 20px;">
+            Period: {{ income_data.period_start }} To {{ income_data.period_end }}
+        </p>
+
+        <h3 style="color: #2e7d32; border-left: 5px solid #2e7d32; padding-left: 10px;">REVENUES</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+                <tr style="background: #f9f9f9; border-bottom: 1px solid #ddd;">
+                    <th style="text-align: left; padding: 10px;">Account</th>
+                    <th style="text-align: right; padding: 10px;">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rev in income_data.revenues %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;">{{ rev.code }} - {{ rev.name }}</td>
+                    <td style="padding: 10px; text-align: right;">{{ rev.balance }}</td>
+                </tr>
+                {% endfor %}
+                <tr style="font-weight: bold; background: #e8f5e9;">
+                    <td style="padding: 10px;">Total Revenues</td>
+                    <td style="padding: 10px; text-align: right; color: #2e7d32;">$ {{ income_data.total_revenue }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="color: #c62828; border-left: 5px solid #c62828; padding-left: 10px;">EXPENSES</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tbody>
+                {% for exp in income_data.expenses %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;">{{ exp.code }} - {{ exp.name }}</td>
+                    <td style="padding: 10px; text-align: right;">{{ exp.balance }}</td>
+                </tr>
+                {% endfor %}
+                <tr style="font-weight: bold; background: #ffebee;">
+                    <td style="padding: 10px;">Total Expenses</td>
+                    <td style="padding: 10px; text-align: right; color: #c62828;">$ {{ income_data.total_expense }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="background: #417690; color: white; padding: 15px; display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; border-radius: 4px;">
+            <span>NET INCOME</span>
+            <span>$ {{ income_data.net_income }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

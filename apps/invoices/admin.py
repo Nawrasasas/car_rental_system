@@ -1,3 +1,4 @@
+# PATH: apps/invoices/admin.py
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, get_object_or_404

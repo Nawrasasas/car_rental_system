@@ -5,14 +5,15 @@ from apps.branches.models import Branch
 class Vehicle(models.Model):
     # --- خيارات حالة السيارة داخل النظام ---
     STATUS_CHOICES = (
-        ('available', 'Available'),
-        ('rented', 'Rented'),
-        ('maintenance', 'Maintenance'),
-        ('service', 'Service'),
-        ('stolen', 'Stolen'),
-        ('out_of_service', 'Out of Service'),
-        ('accident', 'Accident'),
-        ('sold', 'Sold'),
+        ("available", "Available"),
+        ("internal_use", "Internal Use"),
+        ("rented", "Rented"),
+        ("maintenance", "Maintenance"),
+        ("service", "Service"),
+        ("stolen", "Stolen"),
+        ("out_of_service", "Out of Service"),
+        ("accident", "Accident"),
+        ("sold", "Sold"),
     )
 
     # --- خيارات نوع الوقود ---

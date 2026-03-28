@@ -3,14 +3,22 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-enterprise-demo-key'
+# =========================
+# Local Development Settings
+# =========================
 
+# مفتاح محلي للتطوير فقط
+SECRET_KEY = "dev-only-local-key"
+
+# للتطوير المحلي الآن
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+
+CSRF_TRUSTED_ORIGINS = []
 
 INSTALLED_APPS = [
-    "import_export", 
+    "import_export",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -28,76 +36,114 @@ INSTALLED_APPS = [
     "apps.accounting",
     "apps.invoices",
     "apps.reports",
+    "apps.deposits",
+    "apps.traffic_fines",
+    "apps.vehicle_usage",
 ]
-
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
+
+# =========================
+# Database
+# =========================
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        # قاعدة PostgreSQL المحلية الفعلية التي تعمل عليها الآن
+        "NAME": "car_rental_dev_test",
+        # اسم مستخدم PostgreSQL المحلي
+        "USER": "dev",
+        # ضع هنا كلمة المرور الفعلية لمستخدم PostgreSQL المحلي dev
+        "PASSWORD": "09900990",
+        # نستخدم 127.0.0.1 مباشرة لتفادي أي التباس مع localhost / IPv6
+        "HOST": "127.0.0.1",
+        "PORT": "5432",
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "connect_timeout": 10,
+        },
     }
 }
 
-AUTH_USER_MODEL = 'accounts.User'
-# الإعدادات الحالية التي أرسلتها
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Baghdad'
+AUTH_USER_MODEL = "accounts.User"
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Asia/Baghdad"
 USE_I18N = True
 USE_TZ = True
 
-# الإضافات الجديدة للتنسيق المطلوب:
-USE_L10N = False  # تفعيل التنسيق المحلي
-USE_THOUSAND_SEPARATOR = True  # تفعيل فواصل الآلاف للأرقام (مثلاً 1,525.00)
+USE_L10N = False
+USE_THOUSAND_SEPARATOR = True
 
-# ضبط صيغ التاريخ لتظهر وتُقبل كـ (يوم-شهر-سنة)
-DATETIME_FORMAT = 'd-m-Y H:i'
-DATE_FORMAT = 'd-m-Y'
+DATETIME_FORMAT = "d-m-Y H:i"
+DATE_FORMAT = "d-m-Y"
 
-# التنسيقات التي سيقبلها Django عند الكتابة في الخانات (Input)
 DATETIME_INPUT_FORMATS = [
-    '%d-%m-%Y %H:%M:%S',
-    '%d-%m-%Y %H:%M',
-    '%Y-%m-%d %H:%M:%S',
-    '%Y-%m-%d %H:%M',
+    "%d-%m-%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
 ]
-DATETIME_FORMAT = 'd-m-Y H:i'
-DATE_FORMAT = 'd-m-Y'
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+DATE_INPUT_FORMATS = [
+    "%d-%m-%Y",
+    "%Y-%m-%d",
+]
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# =========================
+# Security for local development
+# =========================
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SECURE_SSL_REDIRECT = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"

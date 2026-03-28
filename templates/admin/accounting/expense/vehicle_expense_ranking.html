@@ -1,0 +1,355 @@
+{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<style>
+    /* --- حاشية: حاوية الصفحة كاملة --- */
+    .expense-ranking-page {
+        max-width: 1200px;
+        margin: 24px auto;
+        padding: 0 12px 24px;
+    }
+
+    /* --- حاشية: البطاقة العلوية --- */
+    .expense-ranking-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        color: #fff;
+        border-radius: 18px;
+        padding: 28px 30px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+        margin-bottom: 22px;
+    }
+
+    .expense-ranking-hero h1 {
+        margin: 0 0 8px 0;
+        font-size: 30px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .expense-ranking-hero p {
+        margin: 0;
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    /* --- حاشية: بطاقة الفلاتر --- */
+    .expense-ranking-filter-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        margin-bottom: 22px;
+    }
+
+    .expense-ranking-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        align-items: end;
+    }
+
+    .expense-ranking-field label {
+        display: block;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .expense-ranking-field input[type="date"] {
+        width: 100%;
+        height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 0 12px;
+        font-size: 14px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+
+    .expense-ranking-field input[type="date"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .expense-ranking-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .expense-ranking-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 44px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.2s ease;
+    }
+
+    .expense-ranking-btn-primary {
+        background: #2563eb;
+        color: #fff;
+    }
+
+    .expense-ranking-btn-primary:hover {
+        background: #1d4ed8;
+        color: #fff;
+    }
+
+    .expense-ranking-btn-secondary {
+        background: #f8fafc;
+        color: #1e293b;
+        border: 1px solid #cbd5e1;
+    }
+
+    .expense-ranking-btn-secondary:hover {
+        background: #eef2f7;
+        color: #0f172a;
+    }
+
+    .expense-ranking-btn-success {
+        background: #16a34a;
+        color: #fff;
+    }
+
+    .expense-ranking-btn-success:hover {
+        background: #15803d;
+        color: #fff;
+    }
+
+    /* --- حاشية: بطاقات الملخص السريعة --- */
+    .expense-ranking-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .expense-ranking-stat {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 18px 20px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .expense-ranking-stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+
+    .expense-ranking-stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    /* --- حاشية: بطاقة الجدول --- */
+    .expense-ranking-table-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+
+    .expense-ranking-table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+    }
+
+    .expense-ranking-table-header h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .expense-ranking-table-header span {
+        font-size: 13px;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .expense-ranking-table-wrap {
+        overflow-x: auto;
+    }
+
+    .expense-ranking-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+    }
+
+    .expense-ranking-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+    }
+
+    .expense-ranking-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: middle;
+        color: #0f172a;
+        font-size: 14px;
+    }
+
+    .expense-ranking-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .expense-ranking-rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: #e0ecff;
+        color: #1d4ed8;
+        font-weight: 800;
+        font-size: 14px;
+    }
+
+    .expense-ranking-vehicle-no {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .expense-ranking-total {
+        font-weight: 800;
+        color: #b45309;
+    }
+
+    .expense-ranking-empty {
+        padding: 34px 20px;
+        text-align: center;
+        color: #64748b;
+        font-weight: 600;
+    }
+</style>
+
+<div class="expense-ranking-page">
+
+    <!-- حاشية: الهيدر الرئيسي الجميل بدل العنوان المكرر -->
+    <div class="expense-ranking-hero">
+        <h1>Vehicle Expense Ranking</h1>
+        <p>Track vehicle expenses clearly and rank vehicles from the highest total expense to the lowest within any selected period.</p>
+    </div>
+
+    <!-- حاشية: بطاقة الفلاتر -->
+    <div class="expense-ranking-filter-card">
+        <form method="get">
+            <div class="expense-ranking-filter-grid">
+                <div class="expense-ranking-field">
+                    <label for="id_from_date">From date</label>
+                    <input type="date" name="from_date" id="id_from_date" value="{{ from_date|default:'' }}">
+                </div>
+
+                <div class="expense-ranking-field">
+                    <label for="id_to_date">To date</label>
+                    <input type="date" name="to_date" id="id_to_date" value="{{ to_date|default:'' }}">
+                </div>
+
+                <div class="expense-ranking-actions">
+                    <button type="submit" class="expense-ranking-btn expense-ranking-btn-primary">Filter</button>
+
+                    <!-- حاشية: زر تصدير الإكسل يأخذ نفس الفلاتر الحالية من الرابط المجهز في الـ view -->
+                    <a href="{{ export_excel_url }}" class="expense-ranking-btn expense-ranking-btn-success">
+                        Export Excel
+                    </a>
+
+                    <a href="{{ back_url }}" class="expense-ranking-btn expense-ranking-btn-secondary">Back</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- حاشية: بطاقات إحصائية سريعة -->
+    <div class="expense-ranking-stats">
+        <div class="expense-ranking-stat">
+            <div class="expense-ranking-stat-label">Vehicles in result</div>
+            <div class="expense-ranking-stat-value">{{ ranking|length }}</div>
+        </div>
+
+        <div class="expense-ranking-stat">
+            <div class="expense-ranking-stat-label">Selected period</div>
+            <div class="expense-ranking-stat-value" style="font-size:16px; font-weight:700;">
+                {{ from_date|default:"Beginning" }} → {{ to_date|default:"Today" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- حاشية: بطاقة الجدول -->
+    <div class="expense-ranking-table-card">
+        <div class="expense-ranking-table-header">
+            <h2>Ranking Results</h2>
+            <span>Ordered by total expense descending</span>
+        </div>
+
+        <div class="expense-ranking-table-wrap">
+            <table class="expense-ranking-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Vehicle No</th>
+                        <th>Brand</th>
+                        <th>Model</th>
+                        <th>Branch</th>
+                        <th>Expense Count</th>
+                        <th>Total Expense</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ranking %}
+                        <tr>
+                            <td>
+                                <span class="expense-ranking-rank-badge">{{ forloop.counter }}</span>
+                            </td>
+                            <td class="expense-ranking-vehicle-no">{{ row.vehicle__plate_number }}</td>
+                            <td>{{ row.vehicle__brand|default:"-" }}</td>
+                            <td>{{ row.vehicle__model|default:"-" }}</td>
+                            <td>{{ row.vehicle__branch__name|default:"-" }}</td>
+                            <td>{{ row.expense_count }}</td>
+                            <td class="expense-ranking-total">{{ row.total_expense }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="expense-ranking-empty">
+                                No expense data found for this period.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

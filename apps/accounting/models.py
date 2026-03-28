@@ -1,9 +1,8 @@
-from decimal import Decimal
 
+from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
-
 from apps.branches.models import Branch
 from apps.vehicles.models import Vehicle
 
@@ -202,28 +201,51 @@ class JournalEntry(TimeStampedModel):
             if not self.is_balanced:
                 raise ValidationError("Posted entry must be balanced.")
 
+
     @transaction.atomic
     def post(self):
-        # إذا كان القيد مرحلًا مسبقًا فلا نعيد ترحيله.
-        if self.state == EntryState.POSTED:
+        # --- قفل القيد نفسه من قاعدة البيانات لمنع الترحيل المتزامن لنفس السجل ---
+        locked_entry = self.__class__.objects.select_for_update().get(pk=self.pk)
+
+        # --- إذا كان القيد مرحلًا مسبقًا فلا نعيد ترحيله ---
+        if locked_entry.state == EntryState.POSTED:
             return
 
-        # لا يسمح بترحيل قيد بدون عناصر.
-        if not self.items.exists():
+        # --- لا يسمح بترحيل قيد بدون عناصر ---
+        if not locked_entry.items.exists():
             raise ValidationError("Cannot post an entry without journal items.")
 
-        # لا يسمح بترحيل قيد غير متوازن.
-        if not self.is_balanced:
+        # --- حساب المجاميع بعد القفل من قاعدة البيانات ---
+        total_debit = locked_entry.items.aggregate(total=models.Sum("debit"))[
+            "total"
+        ] or Decimal("0.00")
+        total_credit = locked_entry.items.aggregate(total=models.Sum("credit"))[
+            "total"
+        ] or Decimal("0.00")
+
+        # --- لا يسمح بترحيل قيد غير متوازن ---
+        if total_debit != total_credit:
             raise ValidationError(
-                f"Cannot post unbalanced entry. Debit={self.total_debit}, Credit={self.total_credit}"
+                f"Cannot post unbalanced entry. Debit={total_debit}, Credit={total_credit}"
             )
 
-        # تحويل الحالة إلى مرحل.
+        # --- تحديث حالة القيد بشكل آمن بشرط أن يبقى Draft ---
+        updated_rows = self.__class__.objects.filter(
+            pk=locked_entry.pk,
+            state=EntryState.DRAFT,
+        ).update(
+            state=EntryState.POSTED,
+            posted_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+
+        if updated_rows != 1:
+            raise ValidationError("Concurrent posting detected for this journal entry.")
+
+        # --- تحديث الكائن الحالي في الذاكرة ليبقى متزامنًا مع قاعدة البيانات ---
         self.state = EntryState.POSTED
-        # تسجيل وقت الترحيل.
-        self.posted_at = timezone.now()
-        # حفظ الحقول المتغيرة فقط.
-        self.save(update_fields=["state", "posted_at", "updated_at"])
+        self.posted_at = locked_entry.posted_at or timezone.now()
+
 
     def save(self, *args, **kwargs):
         # توليد رقم القيد تلقائيًا عند أول حفظ فقط.
@@ -269,11 +291,26 @@ class JournalItem(models.Model):
     # مبلغ الدائن.
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
 
-    class Meta:
-        # اسم مفرد داخل الإدارة.
-        verbose_name = "Journal Item"
-        # اسم جمع داخل الإدارة.
-        verbose_name_plural = "Journal Items"
+
+class Meta:
+    # اسم مفرد داخل الإدارة.
+    verbose_name = "Journal Item"
+    # اسم جمع داخل الإدارة.
+    verbose_name_plural = "Journal Items"
+    # --- قيود قاعدة بيانات لمنع الأسطر المحاسبية غير المنطقية حتى لو تم تجاوز clean() ---
+    constraints = [
+        models.CheckConstraint(
+            condition=models.Q(debit__gte=0) & models.Q(credit__gte=0),
+            name="journalitem_debit_credit_non_negative",
+        ),
+        models.CheckConstraint(
+            condition=(
+                (models.Q(debit__gt=0) & models.Q(credit=0))
+                | (models.Q(debit=0) & models.Q(credit__gt=0))
+            ),
+            name="journalitem_exactly_one_side_positive",
+        ),
+    ]
 
     def __str__(self):
         # عرض السطر مع كود الحساب وقيم المدين والدائن.

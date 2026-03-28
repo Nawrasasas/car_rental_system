@@ -41,78 +41,71 @@ window.addEventListener('load', function () {
             if (isNaN(dt.getTime())) return null;
             return dt;
         }
-
-function calculateNow() {
-    // --- قراءة تاريخ ووقت بداية العقد من الحقول المفردة أو الحقول المنفصلة الخاصة بـ Django ---
-    let sDate = $('#id_start_date_0').val() || $('#id_start_date').val();
-    let sTime = $('#id_start_date_1').val() || "00:00";
-
-    // --- قراءة تاريخ ووقت نهاية العقد من الحقول المفردة أو الحقول المنفصلة الخاصة بـ Django ---
-    let eDate = $('#id_end_date_0').val() || $('#id_end_date').val();
-    let eTime = $('#id_end_date_1').val() || "00:00";
-
-    // --- قراءة السعر اليومي ---
-    let rate = parseFloat($('#id_daily_rate').val()) || 0;
-
-    // --- قراءة نسبة الضريبة ---
-    let vat = parseFloat($('#id_vat_percentage').val()) || 0;
-
-    // --- قراءة غرامات المرور ---
-    let fines = parseFloat($('#id_traffic_fines').val()) || 0;
-
-    // --- قراءة غرامات الحوادث ---
-    let damageFees = parseFloat($('#id_damage_fees').val()) || 0;
-
-    // --- قراءة الرسوم أو الغرامات الأخرى ---
-    let otherCharges = parseFloat($('#id_other_charges').val()) || 0;
-
-    // --- تحويل النصوص إلى كائنات تاريخ فعلية ---
-    let start = parseDateTime(sDate, sTime);
-    let end = parseDateTime(eDate, eTime);
-
-    // --- لا نكمل إلا إذا كان التاريخان صالحين ---
-    if (start && end) {
-        // --- إذا كان تاريخ النهاية بعد أو يساوي تاريخ البداية نحسب الأيام والإجمالي ---
-        if (end >= start) {
-            // --- حساب الفرق الكامل بالميلي ثانية ---
-            let diffMs = end - start;
-
-            // --- عدد الميلي ثانية في اليوم الواحد ---
-            let dayMs = 1000 * 60 * 60 * 24;
-
-            // --- الجزء الصحيح من الأيام ---
-            let daysPart = Math.floor(diffMs / dayMs);
-
-            // --- المدة المتبقية بعد خصم الأيام الصحيحة ---
-            let remainingMs = diffMs % dayMs;
-
-            // --- تحويل الباقي إلى ساعات ---
-            let remainingHours = remainingMs / (1000 * 60 * 60);
-
-            // --- نفس منطق النظام الحالي: إذا تبقى أكثر من ساعة نقرّب ليوم إضافي ---
-            let days = Math.max(1, daysPart + (remainingHours > 1 ? 1 : 0));
-
-            // --- تحديث عدد أيام الإيجار مباشرة قبل الحفظ ---
-            $('.field-rental_days .readonly').text(days);
-
-            // --- حساب إجمالي الإيجار الأساسي = عدد الأيام × السعر اليومي ---
-            let base = days * rate;
-
-            // --- حساب مبلغ الضريبة على الإجمالي الأساسي فقط ---
-            let vatAmount = base * (vat / 100);
-
-            // --- حساب الصافي النهائي شاملاً الضريبة وغرامات المرور وغرامات الحوادث والرسوم الأخرى ---
-            let total = base + vatAmount + fines + damageFees + otherCharges;
-
-            // --- تحديث قيمة Net Total مباشرة قبل الحفظ ---
-            $('.field-net_total .readonly').text(total.toFixed(2));
-        } else {
-            // --- إذا كان تاريخ النهاية قبل البداية نعرض قيمًا صفرية ---
-            $('.field-rental_days .readonly').text('0');
-            $('.field-net_total .readonly').text('0.00');
+        function isRentalFormPage() {
+            // --- نتحقق أننا داخل صفحة نموذج العقد فقط ---
+            return (
+                $('#id_daily_rate').length > 0 ||
+                $('#id_start_date').length > 0 ||
+                $('#id_start_date_0').length > 0
+              );
         }
-    }
-}
+
+        function calculateNow() {
+            // --- لا نشغل أي شيء خارج صفحة العقد ---
+            if (!isRentalFormPage()) return;
+
+            let sDate = $('#id_start_date_0').val() || $('#id_start_date').val();
+            let sTime = $('#id_start_date_1').val() || "00:00";
+
+            let eDate = $('#id_end_date_0').val() || $('#id_end_date').val();
+            let eTime = $('#id_end_date_1').val() || "00:00";
+
+            let rate = parseFloat($('#id_daily_rate').val()) || 0;
+            let vat = parseFloat($('#id_vat_percentage').val()) || 0;
+            let deposit = parseFloat($('#id_deposit_amount').val()) || 0;
+            let fines = parseFloat($('#id_traffic_fines').val()) || 0;
+            let damageFees = parseFloat($('#id_damage_fees').val()) || 0;
+            let otherCharges = parseFloat($('#id_other_charges').val()) || 0;
+
+            let start = parseDateTime(sDate, sTime);
+            let end = parseDateTime(eDate, eTime);
+
+            ensurePaymentSummaryBoxes();
+
+            if (start && end) {
+                if (end >= start) {
+                    start.setMinutes(0, 0, 0);
+                    end.setMinutes(0, 0, 0);
+
+                    let diffMs = end - start;
+                    let dayMs = 1000 * 60 * 60 * 24;
+                    let daysPart = Math.floor(diffMs / dayMs);
+                    let remainingMs = diffMs % dayMs;
+                    let days = Math.max(1, daysPart + (remainingMs > 0 ? 1 : 0));
+
+                    $('.field-rental_days .readonly').text(days);
+
+                    let base = days * rate;
+                    let vatAmount = base * (vat / 100);
+
+                    // --- Net Total النهائي الظاهري ---
+                    // --- يشمل الإيجار + الضريبة + المخالفات + الأضرار + الرسوم الأخرى + التأمين ---
+                    let finalTotal = base + vatAmount + fines + damageFees + otherCharges + deposit;
+
+                    $('.field-net_total .readonly').text(finalTotal.toFixed(2));
+                    updatePaymentSummaryLive();
+                } else {
+                    $('.field-rental_days .readonly').text('0');
+                    $('.field-net_total .readonly').text('0.00');
+                    updatePaymentSummaryLive();
+                }
+            } else {
+                $('.field-rental_days .readonly').text('0');
+                $('.field-net_total .readonly').text('0.00');
+                updatePaymentSummaryLive();
+            }
+        }
+
 
         function formatUI() {
             $('.field-notes textarea, .field-notes input').css({
@@ -146,44 +139,7 @@ function calculateNow() {
             }
         });
 
-            function ensurePaymentSummaryBox() {
-            if ($('#live-payment-summary-box').length) return;
 
-            let attachmentsGroup = $('#attachments-group, #rentalattachment_set-group');
-            let paymentsGroup = $('#payments-group');
-
-            let html = `
-                <div id="live-payment-summary-box" style="
-                    margin:18px 0;
-                    padding:16px 20px;
-                    border-radius:10px;
-                    border:2px solid #e5e7eb;
-                    background:#f9fafb;
-                    transition:all .2s ease;
-                ">
-                    <div style="display:flex; flex-direction:column; gap:10px; font-size:17px; font-weight:700;">
-                        <div>
-                            Net Total:
-                            <span id="live-net-total-value" style="margin-left:8px; font-size:18px;">0.00</span>
-                        </div>
-                        <div>
-                            Total Paid:
-                            <span id="live-total-paid-value" style="margin-left:8px; font-size:18px;">0.00</span>
-                        </div>
-                        <div>
-                            Remaining Balance:
-                            <span id="live-remaining-balance-value" style="margin-left:8px; font-size:18px;">0.00</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            if (attachmentsGroup.length) {
-                attachmentsGroup.before(html);
-            } else if (paymentsGroup.length) {
-                paymentsGroup.after(html);
-            }
-        }
 
         function getNetTotalValue() {
             let text = '';
@@ -200,6 +156,18 @@ function calculateNow() {
         }
 
         function getPaymentsTotal() {
+            let $state = $('#rental-collection-state');
+
+            // --- بعد الحفظ نعتمد على الأرقام القادمة من السيرفر لأنها الأصح ---
+            if ($state.length) {
+                let contractCollected = parseFloat($state.attr('data-contract-collected')) || 0;
+                let depositCollected = parseFloat($state.attr('data-deposit-collected')) || 0;
+                let fineCollected = parseFloat($state.attr('data-fine-collected')) || 0;
+
+                return contractCollected + depositCollected + fineCollected;
+            }
+
+            // --- احتياط فقط قبل أول حفظ ---
             let total = 0;
 
             $('input[name$="-amount_paid"]').each(function () {
@@ -221,66 +189,73 @@ function calculateNow() {
             return total;
         }
 
-        function ensurePaymentSummaryBox() {
-            // --- إذا كان الصندوق موجودًا مسبقًا لا نعيد إنشاؤه ---
-            if ($('#live-payment-summary-box').length) return;
 
-            let attachmentsGroup = $('#attachments-group, #rentalattachment_set-group');
-            let paymentsGroup = $('#payments-group');
 
-            // --- نبني نفس تصميم الصندوق الأساسي الموجود في admin.py / admin_custom.css ---
-            let html = `
-                <div id="live-payment-summary-box" class="rental-payment-summary">
+        function buildPaymentSummaryBoxHtml(extraClass = '') {
+            return `
+                <div class="live-payment-summary-box rental-payment-summary ${extraClass}">
                     <div class="rental-payment-summary__title">
                         Payment Summary
                     </div>
 
                     <div class="rental-payment-summary__row">
                         <span class="rental-payment-summary__label">Net Total</span>
-                        <span id="live-net-total-value" class="rental-payment-summary__value">$0.00</span>
+                        <span class="live-net-total-value rental-payment-summary__value">$0.00</span>
                     </div>
 
                     <div class="rental-payment-summary__row">
                         <span class="rental-payment-summary__label">Total Paid</span>
-                        <span id="live-total-paid-value" class="rental-payment-summary__value rental-payment-summary__value--paid">$0.00</span>
+                        <span class="live-total-paid-value rental-payment-summary__value rental-payment-summary__value--paid">$0.00</span>
                     </div>
 
                     <div class="rental-payment-summary__row rental-payment-summary__row--last">
                         <span class="rental-payment-summary__label rental-payment-summary__label--strong">Remaining Balance</span>
-                        <span id="live-remaining-balance-value" class="rental-payment-summary__value rental-payment-summary__value--remaining">$0.00</span>
+                        <span class="live-remaining-balance-value rental-payment-summary__value rental-payment-summary__value--remaining">$0.00</span>
                     </div>
                 </div>
             `;
+        }
 
-            // --- نضعه بنفس مكان الصندوق الحالي بين Payments و Attachments ---
+        function ensurePaymentSummaryBoxes() {
+            // --- لا نظهر الصناديق إلا داخل صفحة العقد ---
+            if (!isRentalFormPage()) return;
+
+            if ($('.live-payment-summary-box').length) return;
+
+            let attachmentsGroup = $('#attachments-group, #rentalattachment_set-group');
+            let paymentsGroup = $('#payments-group');
+            let topTarget = $('#content-main form .form-row, #content-main form fieldset.module').first();
+
+            // --- الصندوق العلوي ---
+            if (topTarget.length) {
+                topTarget.before(buildPaymentSummaryBoxHtml('live-payment-summary-box--top'));
+            }
+
+            // --- الصندوق السفلي قبل المرفقات ---
             if (attachmentsGroup.length) {
-                attachmentsGroup.before(html);
+                attachmentsGroup.before(buildPaymentSummaryBoxHtml('live-payment-summary-box--bottom'));
             } else if (paymentsGroup.length) {
-                paymentsGroup.after(html);
+                paymentsGroup.after(buildPaymentSummaryBoxHtml('live-payment-summary-box--bottom'));
+            }
+
+            // --- احتياط ---
+            if (!$('.live-payment-summary-box').length) {
+                $('#content-main form').prepend(buildPaymentSummaryBoxHtml('live-payment-summary-box--top'));
             }
         }
 
         function updatePaymentSummaryLive() {
-            // --- نتأكد من وجود الصندوق ---
             ensurePaymentSummaryBox();
 
             let netTotal = getNetTotalValue();
             let payments = getPaymentsTotal();
             let remaining = netTotal - payments;
 
-            // --- نحدّث الأرقام فقط، بدون أي تغيير في الخلفية أو الحدود ---
-            $('#live-net-total-value').text('$' + netTotal.toFixed(2));
-            $('#live-total-paid-value').text('$' + payments.toFixed(2));
-            $('#live-remaining-balance-value').text('$' + remaining.toFixed(2));
+            $('.live-net-total-value').text('$' + netTotal.toFixed(2));
+            $('.live-total-paid-value').text('$' + payments.toFixed(2));
+            $('.live-remaining-balance-value').text('$' + remaining.toFixed(2));
         }
-
-        $(document).on('input change', 'input[name$="-amount_paid"], input[name$="-DELETE"]', function () {
-            updatePaymentSummaryLive();
-        });    
         
-        
-
-
 
         $(document).on('click', '.btn-remove', function () {
             let row = $(this).closest('tr');
@@ -294,7 +269,7 @@ function calculateNow() {
 $(document).on(
     'input change',
     // --- نراقب كل الحقول التي تؤثر على صافي العقد حتى يتحدث Net Total فورًا ---
-    '#id_start_date, #id_start_date_0, #id_start_date_1, #id_end_date, #id_end_date_0, #id_end_date_1, #id_daily_rate, #id_vat_percentage, #id_traffic_fines, #id_damage_fees, #id_other_charges',
+    '#id_start_date, #id_start_date_0, #id_start_date_1, #id_end_date, #id_end_date_0, #id_end_date_1, #id_daily_rate, #id_vat_percentage, #id_deposit_amount, #id_traffic_fines, #id_damage_fees, #id_other_charges',
     function () {
 
         // --- إعادة الحساب المباشر بمجرد أي تعديل ---
@@ -321,11 +296,14 @@ $(document).on(
 
 
         // تشغيل أولي عند فتح الصفحة
-        calculateNow();
         formatUI();
-        setTimeout(function () {
-            updatePaymentSummaryLive();
-        }, 200);
+
+        if (isRentalFormPage()) {
+            calculateNow();
+            setTimeout(function () {
+                updatePaymentSummaryLive();
+            }, 200);
+        }
 
         // إعادة التنسيق عند إضافة صفوف inline جديدة أو تحديث DOM
         $(document).on('click', '.add-row a, .grp-add-handler', function () {

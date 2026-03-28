@@ -27,31 +27,46 @@ class Customer(models.Model):
 
     phone = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
-    license_number = models.CharField(max_length=100, verbose_name="License / ID Number")
+    license_number = models.CharField(
+        max_length=100, verbose_name="License / ID Number"
+    )
 
+    # --- تاريخ إصدار شهادة السواقة ---
+    driving_license_issue_date = models.DateField(
+        null=True, blank=True, verbose_name="Driving License Issue Date"
+    )
+
+    # --- تاريخ انتهاء شهادة السواقة ---
+    driving_license_expiry_date = models.DateField(
+        null=True, blank=True, verbose_name="Driving License Expiry Date"
+    )
+
+    # --- بيانات جواز السفر ---
     passport_number = models.CharField(max_length=100, blank=True, null=True)
-    passport_expiry_date = models.DateField(null=True, blank=True)
-    verbose_name="Passport Expiry Date"
+
     passport_issue_date = models.DateField(
-    null=True,
-    blank=True,
-    verbose_name="Passport Issue Date"
+        null=True, blank=True, verbose_name="Passport Issue Date"
     )
 
     passport_expiry_date = models.DateField(
-    null=True,
-    blank=True,
-    verbose_name="Passport Expiry Date"
+        null=True, blank=True, verbose_name="Passport Expiry Date"
     )
+
     nationality = models.CharField(max_length=100, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
 
     def clean(self):
+        # --- تحقق منطقي من تواريخ جواز السفر ---
         if self.passport_issue_date and self.passport_expiry_date:
             if self.passport_expiry_date <= self.passport_issue_date:
+                raise ValidationError("Passport expiry date must be after issue date.")
+
+        # --- تحقق منطقي من تواريخ شهادة السواقة ---
+        if self.driving_license_issue_date and self.driving_license_expiry_date:
+            if self.driving_license_expiry_date <= self.driving_license_issue_date:
                 raise ValidationError(
-                "Passport expiry date must be after issue date."
-            )
+                    "Driving license expiry date must be after issue date."
+                )
 
     def __str__(self):
         # إذا كان زبون شركة، يظهر اسم الشركة بجانب اسم الشخص المسؤول
