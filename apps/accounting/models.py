@@ -1,4 +1,3 @@
-
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -291,26 +290,25 @@ class JournalItem(models.Model):
     # مبلغ الدائن.
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
 
-
-class Meta:
-    # اسم مفرد داخل الإدارة.
-    verbose_name = "Journal Item"
-    # اسم جمع داخل الإدارة.
-    verbose_name_plural = "Journal Items"
-    # --- قيود قاعدة بيانات لمنع الأسطر المحاسبية غير المنطقية حتى لو تم تجاوز clean() ---
-    constraints = [
-        models.CheckConstraint(
-            condition=models.Q(debit__gte=0) & models.Q(credit__gte=0),
-            name="journalitem_debit_credit_non_negative",
-        ),
-        models.CheckConstraint(
-            condition=(
-                (models.Q(debit__gt=0) & models.Q(credit=0))
-                | (models.Q(debit=0) & models.Q(credit__gt=0))
+    class Meta:
+        # اسم مفرد داخل الإدارة.
+        verbose_name = "Journal Item"
+        # اسم جمع داخل الإدارة.
+        verbose_name_plural = "Journal Items"
+        # --- قيود قاعدة بيانات لمنع الأسطر المحاسبية غير المنطقية حتى لو تم تجاوز clean() ---
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(debit__gte=0) & models.Q(credit__gte=0),
+                name="journalitem_debit_credit_non_negative",
             ),
-            name="journalitem_exactly_one_side_positive",
-        ),
-    ]
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(debit__gt=0) & models.Q(credit=0))
+                    | (models.Q(debit=0) & models.Q(credit__gt=0))
+                ),
+                name="journalitem_exactly_one_side_positive",
+            ),
+        ]
 
     def __str__(self):
         # عرض السطر مع كود الحساب وقيم المدين والدائن.
@@ -428,13 +426,24 @@ class Expense(TimeStampedModel):
         return f"{self.reference or 'EXP'} - {self.amount}"
 
     def clean(self):
-        # قيمة المصروف يجب أن تكون أكبر من صفر.
-        if self.amount <= 0:
-            raise ValidationError("Expense amount must be greater than zero.")
+        errors = {}
 
-        # إذا تم اختيار حساب مصروف فيجب أن يكون من نوع EXPENSE فعليًا.
-        if self.expense_account_id and self.expense_account.account_type != AccountType.EXPENSE:
-            raise ValidationError("Selected expense account must be of type EXPENSE.")
+        # إذا كانت القيمة موجودة فعليًا نفحص أنها أكبر من صفر
+        # أما إذا كانت فارغة فنترك Django يعرض رسالة الحقل الإجباري المعتادة
+        if self.amount is not None and self.amount <= Decimal("0.00"):
+            errors["amount"] = "Expense amount must be greater than zero."
+
+        # نفحص نوع الحساب فقط إذا كان الحساب موجودًا أصلًا
+        if (
+            self.expense_account_id
+            and self.expense_account.account_type != AccountType.EXPENSE
+        ):
+            errors["expense_account"] = (
+                "Selected expense account must be of type EXPENSE."
+            )
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         # توليد الرقم المرجعي تلقائيًا عند أول حفظ فقط.
@@ -562,13 +571,24 @@ class Revenue(TimeStampedModel):
         return f"{self.reference or 'REV'} - {self.amount}"
 
     def clean(self):
-        # قيمة الإيراد يجب أن تكون أكبر من صفر.
-        if self.amount <= 0:
-            raise ValidationError("Revenue amount must be greater than zero.")
+        errors = {}
 
-        # إذا تم اختيار حساب إيراد فيجب أن يكون من نوع REVENUE فعليًا.
-        if self.revenue_account_id and self.revenue_account.account_type != AccountType.REVENUE:
-            raise ValidationError("Selected revenue account must be of type REVENUE.")
+        # إذا كانت القيمة موجودة فعليًا نفحص أنها أكبر من صفر
+        # أما إذا كانت فارغة فنترك Django يعرض رسالة الحقل الإجباري المعتادة
+        if self.amount is not None and self.amount <= Decimal("0.00"):
+            errors["amount"] = "Revenue amount must be greater than zero."
+
+        # نفحص نوع الحساب فقط إذا كان الحساب موجودًا أصلًا
+        if (
+            self.revenue_account_id
+            and self.revenue_account.account_type != AccountType.REVENUE
+        ):
+            errors["revenue_account"] = (
+                "Selected revenue account must be of type REVENUE."
+            )
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         # توليد رقم الإيراد تلقائيًا عند أول حفظ فقط.

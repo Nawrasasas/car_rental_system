@@ -168,3 +168,33 @@
 [id$="-group"] .add-row {
     margin-top: 12px;
 }
+/* =========================================
+   Vehicles changelist: horizontal scroll for results table
+   ========================================= */
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results table {
+    min-width: 1350px;
+    width: max-content;
+}
+
+/* شكل بسيط للـ scrollbar */
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar {
+    height: 10px;
+}
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar-track {
+    background: transparent;
+}

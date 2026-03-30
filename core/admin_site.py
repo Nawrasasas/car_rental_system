@@ -102,6 +102,7 @@ class MyAdminSite(AdminSite):
             "Rentals",
             "Vehicles",
             "Customers",
+            "Branches",
             "Financial Reports",
             "Authentication and Authorization",
         ]

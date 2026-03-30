@@ -89,7 +89,7 @@ class Rental(models.Model):
 
     # تاريخ بداية العقد الأصلي
     # هذا الحقل يجب ألا يتعدل بعد أول حفظ
-    start_date = models.DateTimeField(verbose_name="Pickup Date")
+    start_date = models.DateTimeField(default=timezone.now, verbose_name="Pickup Date")
 
     # تاريخ نهاية العقد الأصلي / المتوقع
     # هذا الحقل يجب ألا يتعدل بعد أول حفظ
@@ -200,7 +200,6 @@ class Rental(models.Model):
         auto_now_add=True,
         verbose_name="Created At",
     )
-
 
     class Meta:
         verbose_name = "Rental"
@@ -384,6 +383,31 @@ class Rental(models.Model):
                 raise ValidationError(
                     "Return odometer cannot be less than pickup odometer."
                 )
+
+        # منع أي قيم سالبة داخل الخانات المالية للعقد
+        # نعرضها كأخطاء عامة حتى لا ينكسر الحفظ إذا كان بعض الحقول مخفيًا من الفورم
+        validation_errors = []
+
+        if self.daily_rate is not None and Decimal(self.daily_rate) < 0:
+            validation_errors.append("Daily rate cannot be negative.")
+
+        if self.vat_percentage is not None and Decimal(self.vat_percentage) < 0:
+            validation_errors.append("Tax percentage cannot be negative.")
+
+        if self.deposit_amount is not None and Decimal(self.deposit_amount) < 0:
+            validation_errors.append("Deposit amount cannot be negative.")
+
+        if self.traffic_fines is not None and Decimal(self.traffic_fines) < 0:
+            validation_errors.append("Traffic fines cannot be negative.")
+
+        if self.damage_fees is not None and Decimal(self.damage_fees) < 0:
+            validation_errors.append("Damage fees cannot be negative.")
+
+        if self.other_charges is not None and Decimal(self.other_charges) < 0:
+            validation_errors.append("Other charges cannot be negative.")
+
+        if validation_errors:
+            raise ValidationError(validation_errors)
 
         # هذا التحقق يجب أن يعمل في الإنشاء والتعديل معًا
         if self.status == "active" and self._has_overlapping_active_rental():

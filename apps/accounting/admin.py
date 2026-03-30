@@ -1,4 +1,5 @@
 # PATH: apps/accounting/admin.py
+from decimal import Decimal
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 # --- حاشية: نحتاج تجميع المصروفات وعدّها حسب السيارة ---
@@ -18,6 +19,7 @@ from .resources import AccountResource
 from .services import post_expense, post_revenue
 from apps.attachments.inlines import AttachmentInline
 
+
 from .models import (
     Account,
     JournalEntry,
@@ -27,12 +29,61 @@ from .models import (
     EntryState,
     Revenue,
 )
+from django.forms.models import BaseInlineFormSet
+from django.utils.dateparse import parse_date
+from datetime import timedelta
+
+class JournalItemInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        # تنفيذ تحقق Django الأساسي أولًا.
+        super().clean()
+
+        # --- حاشية: سنجمع المدين والدائن من السطور غير المحذوفة فقط ---
+        total_debit = Decimal("0.00")
+        total_credit = Decimal("0.00")
+        has_at_least_one_line = False
+
+        for form in self.forms:
+            # --- حاشية: إذا كان الفورم نفسه غير صالح نخرج ونترك الأخطاء الأصلية تظهر ---
+            if not hasattr(form, "cleaned_data"):
+                continue
+
+            cleaned_data = form.cleaned_data
+
+            # --- حاشية: تجاهل السطور الفارغة أو التي اختار المستخدم حذفها ---
+            if not cleaned_data or cleaned_data.get("DELETE", False):
+                continue
+
+            account = cleaned_data.get("account")
+            debit = cleaned_data.get("debit") or Decimal("0.00")
+            credit = cleaned_data.get("credit") or Decimal("0.00")
+
+            # --- حاشية: لا نحسب السطر إذا لم يتم اختيار حساب بعد ---
+            if not account:
+                continue
+
+            has_at_least_one_line = True
+            total_debit += debit
+            total_credit += credit
+
+        # --- حاشية: ممنوع حفظ القيد إذا لم يتم إدخال أي سطر محاسبي فعلي ---
+        if not has_at_least_one_line:
+            raise ValidationError(
+                "Cannot save journal entry without at least one journal line."
+            )
+
+        # --- حاشية: بعد التأكد من وجود سطور فعلية يجب أن يكون القيد متوازنًا ---
+        if total_debit != total_credit:
+            raise ValidationError(
+                f"Journal entry is unbalanced. Debit={total_debit}, Credit={total_credit}"
+            )
 
 
 # هذا الـ inline مسؤول عن أسطر القيود داخل شاشة القيد الرئيسي.
 class JournalItemInline(admin.TabularInline):
     # ربط الـ inline بموديل عناصر القيد.
     model = JournalItem
+    formset = JournalItemInlineFormSet
     # لا نضيف أسطر وهمية افتراضيًا.
     extra = 0
     # الحقول الظاهرة داخل الصف.
@@ -175,7 +226,71 @@ class JournalEntryAdmin(admin.ModelAdmin):
     )
 
     # الإجراء الجماعي لترحيل القيود.
+    # الإجراء الجماعي لترحيل القيود.
     actions = ("post_selected_entries",)
+
+    # --- حاشية: قالب مخصص لإظهار فلتر التاريخ أعلى صفحة القيود مثل العقود ---
+    change_list_template = "admin/accounting/journalentry/change_list.html"
+
+    def changelist_view(self, request, extra_context=None):
+        # --- حاشية: نلتقط قيم فلتر التاريخ المخصص قبل أن يتعامل معها Django Admin ---
+        journal_date_from = request.GET.get("journal_date_from")
+        journal_date_to = request.GET.get("journal_date_to")
+
+        # --- حاشية: نمرر القيم إلى القالب حتى تبقى ظاهرة بعد الضغط على Apply ---
+        extra_context = extra_context or {}
+        extra_context["journal_date_from"] = journal_date_from or ""
+        extra_context["journal_date_to"] = journal_date_to or ""
+
+        # --- حاشية: نحافظ على بقية الفلاتر والبحث عند إرسال فورم التاريخ ---
+        preserved_params = []
+        for key, values in request.GET.lists():
+            if key in {"journal_date_from", "journal_date_to", "p"}:
+                continue
+
+            for value in values:
+                preserved_params.append((key, value))
+
+        extra_context["journal_date_preserved_params"] = preserved_params
+
+        # --- حاشية: نحذف بارامترات التاريخ المخصصة من GET ---
+        # --- حتى لا يعتبرها Django Admin lookup غير معروف ---
+        cleaned_get = request.GET.copy()
+        cleaned_get.pop("journal_date_from", None)
+        cleaned_get.pop("journal_date_to", None)
+        request.GET = cleaned_get
+
+        # --- حاشية: نخزن القيم في request لاستخدامها داخل get_queryset ---
+        request._journal_date_from = journal_date_from
+        request._journal_date_to = journal_date_to
+
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def get_queryset(self, request):
+        # --- حاشية: نبدأ من queryset الإدارة الطبيعي ---
+        qs = super().get_queryset(request)
+
+        # --- حاشية: نقرأ قيم التاريخ من الخصائص التي خزناها داخل changelist_view ---
+        from_value = getattr(request, "_journal_date_from", None) or request.GET.get(
+            "journal_date_from"
+        )
+        to_value = getattr(request, "_journal_date_to", None) or request.GET.get(
+            "journal_date_to"
+        )
+
+        from_date = parse_date(from_value) if from_value else None
+        to_date = parse_date(to_value) if to_value else None
+
+        # --- حاشية: من تاريخ البداية بشكل شامل ---
+        if from_date:
+            qs = qs.filter(entry_date__gte=from_date)
+
+        # --- حاشية: إلى نهاية تاريخ النهاية بشكل صحيح ---
+        # --- نستخدم أقل من اليوم التالي حتى تعمل سواء كان الحقل Date أو DateTime ---
+        if to_date:
+            qs = qs.filter(entry_date__lt=to_date + timedelta(days=1))
+
+        return qs
 
     def get_actions(self, request):
         # --- إزالة الحذف الجماعي الافتراضي لأنه قد يتجاوز delete() في الموديل ---
@@ -183,7 +298,6 @@ class JournalEntryAdmin(admin.ModelAdmin):
         if "delete_selected" in actions:
             del actions["delete_selected"]
         return actions
-
 
     def total_debit_display(self, obj):
         # إرجاع مجموع المدين.
@@ -236,23 +350,40 @@ class JournalEntryAdmin(admin.ModelAdmin):
         # نبدأ دائمًا من الحقول الأساسية المقروءة فقط.
         base_fields = list(self.readonly_fields)
 
+        # --- حاشية: نقفل state دائمًا من شاشة الفورم ---
+        # --- حتى يبدأ القيد Draft دائمًا ولا يتم ترحيله إلا من Action الـ Post ---
+        if "state" not in base_fields:
+            base_fields.append("state")
+
         # بعد الترحيل تصبح الحقول التحريرية الأساسية للقراءة فقط أيضًا.
         if obj and obj.state == EntryState.POSTED:
-            base_fields.extend(["entry_date", "description", "state"])
+            base_fields.extend(["entry_date", "description"])
 
         # إعادة القائمة النهائية كـ tuple.
         return tuple(base_fields)
 
     def save_model(self, request, obj, form, change):
-        # عند التعديل على سجل موجود نتحقق من حالته القديمة.
-        if change:
-            old_obj = JournalEntry.objects.get(pk=obj.pk)
-            # إذا كان القيد القديم مرحلًا نمنع تعديله.
-            if old_obj.state == EntryState.POSTED:
-                if form.changed_data:
-                    raise ValidationError("Posted journal entries cannot be edited.")
-                return
-        # إذا لم توجد مشكلة نتابع الحفظ الطبيعي.
+        # --- حاشية: عند إنشاء قيد جديد نفرض الحالة دائمًا Draft ---
+        # --- ولا نسمح بتحديد Posted يدويًا من شاشة الإدخال ---
+        if not change:
+            obj.state = EntryState.DRAFT
+            super().save_model(request, obj, form, change)
+            return
+
+        # --- حاشية: عند التعديل نقرأ النسخة القديمة من قاعدة البيانات ---
+        old_obj = JournalEntry.objects.get(pk=obj.pk)
+
+        # --- حاشية: إذا كان القيد مرحلًا نمنع أي تعديل فعلي ---
+        if old_obj.state == EntryState.POSTED:
+            if form.changed_data:
+                raise ValidationError("Posted journal entries cannot be edited.")
+            return
+
+        # --- حاشية: نمنع تغيير الحالة يدويًا من شاشة الفورم ---
+        # --- تبقى Draft إلى أن يتم الترحيل فقط عبر Action الـ Post ---
+        obj.state = old_obj.state
+
+        # --- حاشية: الحفظ الطبيعي لبقية الحقول ---
         super().save_model(request, obj, form, change)
 
     @admin.action(description="Post selected journal entries")
@@ -289,12 +420,13 @@ class JournalEntryAdmin(admin.ModelAdmin):
         css = {
             "all": (
                 "css/attachment_gallery_inline.css",
+                "admin/css/rental_admin.css",  # --- تحميل CSS الذي يجعل فلتر الجانب ثابتًا وبسكرول داخلي ---
             )
         }
 
         js = (
             "js/attachment_gallery_inline.js",
-        )        
+        )       
 
 
 class ExpenseResource(resources.ModelResource):
@@ -681,6 +813,12 @@ class RevenueAdmin(admin.ModelAdmin):
         # وإلا نعرض شرطة.
         return "-"
 
+    def delete_queryset(self, request, queryset):
+        # بدلاً من الحذف المباشر بقاعدة البيانات الذي يتخطى الموديل
+        # نقوم بالمرور على السجلات لحذفها فرادى لتمر عبر حماية الموديل
+        for obj in queryset:
+            obj.delete()    
+
     def get_actions(self, request):
         # --- إزالة الحذف الجماعي الافتراضي لأنه قد يتجاوز delete() في الموديل ---
         actions = super().get_actions(request)
@@ -697,7 +835,6 @@ class RevenueAdmin(admin.ModelAdmin):
             return False
         # خلاف ذلك نرجع للسلوك الافتراضي.
         return super().has_delete_permission(request, obj)
-
 
     def get_readonly_fields(self, request, obj=None):
         # نبدأ من الحقول الأساسية المقروءة فقط.
@@ -725,15 +862,23 @@ class RevenueAdmin(admin.ModelAdmin):
 
         return tuple(base_fields)
 
+    # 1. التعديل في: apps/accounting/admin.py
+    # يجب تنظيف الدالة لتبقى للحفظ الافتراضي فقط (أو حذفها كلياً إن لم يكن لها استخدام آخر)
     def save_model(self, request, obj, form, change):
-        # عند تعديل إيراد موجود نقرأ النسخة القديمة.
-        if change:
-            old_obj = Revenue.objects.get(pk=obj.pk)
-            # إذا كان الإيراد مرحلًا نمنع التعديل.
-            if old_obj.state == EntryState.POSTED:
-                raise ValidationError("Posted revenues cannot be edited.")
-        # إذا كان كل شيء صحيحًا نتابع الحفظ.
         super().save_model(request, obj, form, change)
+
+    # 2. التعديل في: apps/accounting/models.py (داخل كلاس Revenue)
+    def clean(self):
+        super().clean()
+
+        # إضافة الفحص هنا ليتم عرضه كرسالة خطأ سلسة للمستخدم
+        # نتحقق فقط في حالة التعديل (السجل موجود مسبقاً)
+        if self.pk:
+            old_obj = self.__class__.objects.get(pk=self.pk)
+            if old_obj.state == EntryState.POSTED:
+                raise ValidationError("Posted records cannot be edited.")
+
+        # ... (بقاء باقي كود clean الحالي الخاص بك لفحص المبلغ ونوع الحساب كما هو) ...
 
     @admin.action(description="Post selected revenues")
     def post_selected_revenues(self, request, queryset):

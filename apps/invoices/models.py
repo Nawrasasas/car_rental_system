@@ -582,10 +582,32 @@ class InvoiceItem(models.Model):
         # عرض وصف البند.
         return self.description
 
+    def clean(self):
+        # استدعاء تحقق Django الأساسي أولًا.
+        super().clean()
+
+        # --- منع القيم السالبة داخل بنود الفاتورة ---
+        field_errors = {}
+
+        if self.quantity is not None and Decimal(self.quantity) < 0:
+            field_errors["quantity"] = "Quantity cannot be negative."
+
+        if self.unit_price is not None and Decimal(self.unit_price) < 0:
+            field_errors["unit_price"] = "Unit price cannot be negative."
+
+        if self.tax_percent is not None and Decimal(self.tax_percent) < 0:
+            field_errors["tax_percent"] = "Tax percent cannot be negative."
+
+        if field_errors:
+            raise ValidationError(field_errors)
+
     def save(self, *args, **kwargs):
         # منع تعديل البنود إذا خرجت الفاتورة من حالة draft.
         if self.invoice_id and not self.invoice.can_edit_core_fields():
             raise ValidationError("لا يمكن تعديل بنود الفاتورة بعد الترحيل أو العكس.")
+
+        # --- تنفيذ التحقق الكامل قبل الحساب والحفظ ---
+        self.full_clean()
 
         # حساب إجمالي البند قبل الضريبة.
         line_subtotal = (

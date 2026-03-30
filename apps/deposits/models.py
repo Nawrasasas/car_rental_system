@@ -161,21 +161,29 @@ class Deposit(models.Model):
         # الرصيد المتبقي من مبلغ التأمين بعد أي استردادات
         return self.amount - self.refunded_amount
 
+
     @property
     def calculated_status(self):
-        # --- إذا لم يوجد قيد قبض بعد، فالسجل ما زال بانتظار التحصيل ---
+        # --- حاشية عربية: الحالة المشتقة لم تعد تعتمد على أي Refund ---
+        # --- طالما لا يوجد قيد قبض فعلي فالسند Pending Collection ---
         if not self.journal_entry_id:
             return DepositStatus.PENDING_COLLECTION
 
-        # --- بعد القبض ننتقل لمنطق الاسترداد ---
-        if self.refunded_amount <= Decimal("0.00"):
-            return DepositStatus.RECEIVED
+        # --- بمجرد وجود قيد قبض فعلي نعتبر السند Received ---
+        return DepositStatus.RECEIVED
 
-        if self.remaining_amount <= Decimal("0.00"):
-            return DepositStatus.FULLY_REFUNDED
 
-        return DepositStatus.PARTIALLY_REFUNDED
-
+    @property
+    def calculated_status_display(self):
+        # --- حاشية عربية: العرض أصبح محصورًا بحالتين فقط ---
+        status_map = {
+            DepositStatus.PENDING_COLLECTION: "Pending Collection",
+            DepositStatus.RECEIVED: "Received",
+        }
+        return status_map.get(
+            self.calculated_status,
+            self.calculated_status.replace("_", " ").title(),
+        )
 
     @property
     def calculated_status_display(self):

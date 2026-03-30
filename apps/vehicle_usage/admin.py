@@ -43,6 +43,8 @@ class UsageStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
+
+
 @admin.register(VehicleUsage, site=custom_admin_site)
 class VehicleUsageAdmin(admin.ModelAdmin):
     # --- الأعمدة الظاهرة في القائمة ---

@@ -259,20 +259,13 @@ def post_deposit_refund(*, refund: DepositRefund):
         raise AccountingError("Concurrent posting detected for this deposit refund.")
 
     # --- تحديث حالة سند التأمين حسب الرصيد المتبقي ---
-    total_refunded = (
-        DepositRefund.objects.filter(deposit=locked_deposit).aggregate(
-            total=Sum("amount")
-        )
-    )["total"] or Decimal("0.00")
-
-    remaining_amount = to_decimal(locked_deposit.amount) - to_decimal(total_refunded)
-
-    if remaining_amount <= Decimal("0.00"):
-        new_status = DepositStatus.FULLY_REFUNDED
-    elif total_refunded > Decimal("0.00"):
-        new_status = DepositStatus.PARTIALLY_REFUNDED
-    else:
-        new_status = DepositStatus.RECEIVED
+# --- حاشية عربية: لم نعد نعتبر الـ refund حالة مستقلة داخل Deposit.status ---
+# --- الحالة الآن مشتقة فقط من وجود قيد قبض فعلي للتأمين نفسه ---
+    new_status = (
+        DepositStatus.RECEIVED
+        if locked_deposit.journal_entry_id
+        else DepositStatus.PENDING_COLLECTION
+    )
 
     Deposit.objects.filter(pk=locked_deposit.pk).update(status=new_status)
 

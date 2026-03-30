@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
 from django.db.models import Sum, F, Value, DecimalField, ExpressionWrapper, Q
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -18,6 +19,8 @@ from core.admin_site import custom_admin_site
 from decimal import Decimal
 from django.db import transaction
 from django.forms.models import BaseInlineFormSet
+from django.utils.dateparse import parse_date
+from datetime import datetime, time, timedelta
 
 
 class RentalLogInline(admin.TabularInline):
@@ -280,6 +283,186 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     form = RentalAdminForm
     autocomplete_fields = ('vehicle',)
 
+    # قالب مخصص لإظهار بطاقات حالات العقود أعلى صفحة القائمة
+    change_list_template = "admin/rentals/rental/change_list.html"
+
+    def changelist_view(self, request, extra_context=None):
+        # --- نلتقط قيم فلتر التاريخ قبل أن يتعامل معها Django Admin ---
+        contract_date_from = request.GET.get("contract_date_from")
+        contract_date_to = request.GET.get("contract_date_to")
+
+        # --- نمرر القيم إلى القالب حتى تبقى ظاهرة بعد الضغط على Apply ---
+        extra_context = extra_context or {}
+        extra_context["contract_date_from"] = contract_date_from or ""
+        extra_context["contract_date_to"] = contract_date_to or ""
+
+        # --- نحافظ على بقية الفلاتر والبحث عند إرسال فورم التاريخ ---
+        preserved_params = []
+        for key, values in request.GET.lists():
+            if key in {"contract_date_from", "contract_date_to", "p"}:
+                continue
+
+            for value in values:
+                preserved_params.append((key, value))
+
+        extra_context["contract_date_preserved_params"] = preserved_params
+
+        # --- هذه هي النقطة الجوهرية في الحل ---
+        # --- نحذف بارامترات التاريخ المخصصة من GET قبل دخول super() ---
+        # --- حتى لا يعتبرها Django Admin lookup غير معروف ---
+        cleaned_get = request.GET.copy()
+        cleaned_get.pop("contract_date_from", None)
+        cleaned_get.pop("contract_date_to", None)
+        request.GET = cleaned_get
+
+        # --- نخزن القيم في request لاستخدامها داخل get_queryset ---
+        request._contract_date_from = contract_date_from
+        request._contract_date_to = contract_date_to
+
+        response = super().changelist_view(request, extra_context=extra_context)
+
+        try:
+            cl = response.context_data["cl"]
+        except (AttributeError, KeyError, TypeError):
+            return response
+
+        # --- نفس اسم parameter_name الموجود داخل RentalStatusFilter ---
+        filter_param = "rental_status"
+
+        # --- queryset الأساسي للقائمة ---
+        base_qs = cl.root_queryset
+
+        # --- نبني روابط البطاقات مع الحفاظ على بقية البارامترات ---
+        current_params = request.GET.copy()
+        current_params.pop(filter_param, None)
+        current_params.pop("p", None)
+
+        # --- نعيد أيضًا بارامترات التاريخ إلى روابط البطاقات ---
+        if contract_date_from:
+            current_params["contract_date_from"] = contract_date_from
+        if contract_date_to:
+            current_params["contract_date_to"] = contract_date_to
+
+        current_status = request.GET.get(filter_param)
+
+        def build_url(status_value=None):
+            params = current_params.copy()
+            if status_value:
+                params[filter_param] = status_value
+            query_string = params.urlencode()
+            return f"{request.path}?{query_string}" if query_string else request.path
+
+        rental_status_cards = [
+            {
+                "label": "All",
+                "count": base_qs.count(),
+                "url": build_url(),
+                "active": not current_status,
+                "css_class": "all",
+            },
+            {
+                "label": "Active",
+                "count": base_qs.filter(
+                    status="active",
+                    actual_return_date__isnull=True,
+                ).count(),
+                "url": build_url("active"),
+                "active": current_status == "active",
+                "css_class": "active",
+            },
+            {
+                "label": "Completed",
+                "count": base_qs.filter(
+                    status="completed",
+                ).count(),
+                "url": build_url("completed"),
+                "active": current_status == "completed",
+                "css_class": "completed",
+            },
+            {
+                "label": "Cancelled",
+                "count": base_qs.filter(
+                    status="cancelled",
+                ).count(),
+                "url": build_url("cancelled"),
+                "active": current_status == "cancelled",
+                "css_class": "cancelled",
+            },
+            {
+                "label": "Overdue",
+                "count": base_qs.filter(
+                    status="active",
+                    actual_return_date__isnull=True,
+                    end_date__lt=timezone.now(),
+                ).count(),
+                "url": build_url("overdue"),
+                "active": current_status == "overdue",
+                "css_class": "overdue",
+            },
+        ]
+
+        response.context_data["rental_status_cards"] = rental_status_cards
+        return response
+
+    def get_queryset(self, request):
+        # --- نبدأ من queryset الإدارة الطبيعي ---
+        qs = (
+            super()
+            .get_queryset(request)
+            .select_related(
+                "customer",
+                "vehicle",
+                "branch",
+                "created_by",
+                "journal_entry",
+            )
+            .prefetch_related(
+                "payments",
+                "attachments",
+                "logs",
+            )
+        )
+
+        # --- نقرأ قيم التاريخ من الخصائص التي خزناها داخل changelist_view ---
+        # --- ونبقي fallback على request.GET تحسبًا لأي استخدام آخر ---
+        from_value = getattr(request, "_contract_date_from", None) or request.GET.get(
+            "contract_date_from"
+        )
+        to_value = getattr(request, "_contract_date_to", None) or request.GET.get(
+            "contract_date_to"
+        )
+
+        from_date = parse_date(from_value) if from_value else None
+        to_date = parse_date(to_value) if to_value else None
+
+        current_tz = timezone.get_current_timezone()
+
+        # --- من بداية اليوم المحدد ---
+        if from_date:
+            from_dt = datetime.combine(from_date, time.min)
+            if timezone.is_aware(timezone.now()):
+                from_dt = timezone.make_aware(from_dt, current_tz)
+
+            qs = qs.filter(start_date__gte=from_dt)
+
+        # --- إلى بداية اليوم التالي بشكل حصري ---
+        if to_date:
+            to_dt = datetime.combine(to_date + timedelta(days=1), time.min)
+            if timezone.is_aware(timezone.now()):
+                to_dt = timezone.make_aware(to_dt, current_tz)
+
+            qs = qs.filter(start_date__lt=to_dt)
+
+        # --- حساب إجمالي الدفعات دفعة واحدة على مستوى قاعدة البيانات ---
+        qs = qs.annotate(
+            paid_total_db=Coalesce(
+                Sum("payments__amount_paid"),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+
+        return qs
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """
         هذا الفلتر يفيد فقط في بعض الحالات التقليدية،
@@ -323,9 +506,9 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     list_filter = (
         PaymentStatusFilter,
         RentalStatusFilter,
-        'branch',
-        'auto_renew',
-        'created_at',
+        "branch",
+        "auto_renew",
+        "created_at",
     )
 
     # البحث
@@ -767,7 +950,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                     amount_paid=contract_amount,
                     method="cash",
                     status="completed",
-                    payment_date=timezone.localdate(),
+                    payment_date=timezone.now().date(),
                     notes=self.AUTO_CONTRACT_COLLECTION_NOTE,
                 )
                 payment.full_clean()
@@ -810,7 +993,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             if hasattr(fine, "collected_from_customer_date") and not getattr(
                 fine, "collected_from_customer_date", None
             ):
-                fine.collected_from_customer_date = timezone.localdate()
+                fine.collected_from_customer_date = timezone.now().date()
                 update_fields.append("collected_from_customer_date")
 
             if update_fields:
@@ -1072,20 +1255,6 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
         return super().response_change(request, obj)
 
-    def get_queryset(self, request):
-        # تحسين الاستعلامات
-        qs = super().get_queryset(request)
-        return qs.select_related(
-            'customer',
-            'vehicle',
-            'branch',
-            'created_by',
-        ).prefetch_related(
-            'payments',
-            'attachments',
-            'logs',
-        )
-
     def get_customer_display(self, obj):
         # عرض العميل
         customer_name = getattr(obj.customer, 'full_name', None) or str(obj.customer)
@@ -1133,15 +1302,26 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
     vehicle_info.short_description = "VEHICLE INFO"
 
+    def _format_baghdad_datetime(self, value):
+        # --- توحيد عرض أي datetime حسب توقيت بغداد المحلي ---
+        if not value:
+            return "-"
+
+        # --- إذا كانت القيمة aware نحوّلها للتوقيت المحلي الحالي ---
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+
+        return value.strftime("%d-%m-%Y %H:%M")
+
     def pickup_time(self, obj):
-        # عرض تاريخ بداية العقد
-        return obj.start_date.strftime('%d-%m-%Y %H:%M') if obj.start_date else '-'
+        # --- عرض تاريخ بداية العقد بتوقيت بغداد الصحيح ---
+        return self._format_baghdad_datetime(obj.start_date)
 
     pickup_time.short_description = "PICKUP TIME"
 
     def return_time(self, obj):
-        # عرض تاريخ نهاية العقد المتوقع
-        return obj.end_date.strftime('%d-%m-%Y %H:%M') if obj.end_date else '-'
+        # --- عرض تاريخ نهاية العقد المتوقع بتوقيت بغداد الصحيح ---
+        return self._format_baghdad_datetime(obj.end_date)
 
     return_time.short_description = "RETURN TIME"
 
@@ -1196,17 +1376,20 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     status_label.short_description = "STATUS"
 
     def print_contract_button(self, obj):
-        # زر طباعة العقد
+        # --- حاشية: زر طباعة العقد ---
         if not obj or not obj.pk:
             return "Save the rental first to enable printing."
 
+        # --- حاشية: توليد الرابط الصحيح من اسم المسار بدل كتابته يدويًا ---
+        print_url = reverse("rentals:print_rental", args=[obj.id])
+
         return format_html(
-            '<a href="/rentals/{}/print/" target="_blank" '
+            '<a href="{}" target="_blank" '
             'style="background:#0f172a; color:white; padding:10px 16px; '
             'border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">'
             'Print Contract'
             '</a>',
-            obj.id
+            print_url
         )
 
     print_contract_button.short_description = "PRINT CONTRACT"
@@ -1259,26 +1442,6 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                 f"✅ تم ترحيل {posted_count} عقد بنجاح إلى شجرة الحسابات.",
                 level=messages.SUCCESS,
             )
-
-    def get_queryset(self, request):
-        # --- تحميل العلاقات المباشرة مسبقًا لتقليل الاستعلامات ---
-        qs = super().get_queryset(request).select_related(
-            "customer",
-            "vehicle",
-            "branch",
-            "journal_entry",
-        )
-
-        # --- حساب إجمالي الدفعات دفعة واحدة على مستوى قاعدة البيانات ---
-        qs = qs.annotate(
-            paid_total_db=Coalesce(
-                Sum("payments__amount_paid"),
-                Value(0),
-                output_field=DecimalField(max_digits=10, decimal_places=2),
-            )
-        )
-
-        return qs
 
     change_form_template = "admin/rentals/rental/change_form.html"
 

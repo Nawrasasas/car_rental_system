@@ -111,34 +111,72 @@ class Payment(models.Model):
         return f"{self.reference or 'RCT'} - {self.amount_paid}"
 
     def clean(self):
-        # --- نجمع الأخطاء على مستوى الحقول حتى تظهر بشكل صحيح في الأدمن والـ API ---
         errors = {}
 
-        # --- منع المبلغ الصفري أو السالب ---
-        if getattr(self, "amount_paid", None) is None or self.amount_paid <= Decimal(
-            "0.00"
-        ):
+        # يجب ربط الدفعة بعقد
+        if not self.rental_id:
+            errors["rental"] = "Payment must be linked to a rental contract."
+
+        # منع المبلغ الصفري أو السالب
+        if getattr(self, "amount_paid", None) is None or self.amount_paid <= Decimal("0.00"):
             errors["amount_paid"] = "Payment amount must be strictly positive."
 
-        # --- منع حفظ الدفعة بدون طريقة دفع ---
+        # منع حفظ الدفعة بدون طريقة دفع
         if not self.method:
             errors["method"] = "Payment method must be specified."
 
-        # --- إذا وُجدت أخطاء نرفعها دفعة واحدة ---
+        # منع تجاوز مجموع الدفعات لقيمة العقد
+        if (
+            self.rental_id
+            and getattr(self, "amount_paid", None) is not None
+            and self.amount_paid > Decimal("0.00")
+        ):
+            rental_total = (
+                Rental.objects.filter(pk=self.rental_id)
+                .values_list("net_total", flat=True)
+                .first()
+            ) or Decimal("0.00")
+
+            previous_total = (
+                self.__class__.objects.filter(rental_id=self.rental_id)
+                .exclude(pk=self.pk)
+                .aggregate(total=models.Sum("amount_paid"))["total"]
+                or Decimal("0.00")
+            )
+
+            new_total = previous_total + Decimal(self.amount_paid)
+
+            if new_total > rental_total:
+                remaining_allowed = rental_total - previous_total
+                if remaining_allowed < Decimal("0.00"):
+                    remaining_allowed = Decimal("0.00")
+
+                errors["amount_paid"] = (
+                    f"Payment exceeds contract total. "
+                    f"Allowed remaining amount is {remaining_allowed}."
+                )
+
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        # --- توليد المرجع تلقائيًا عند أول حفظ فقط ---
-        if not self.reference:
-            # --- استيراد محلي لتجنب الدوران بين التطبيقات وقت التحميل ---
-            from apps.accounting.services import generate_payment_reference
+        with transaction.atomic():
+            # نقفل العقد لحماية المنع من تجاوز السقف عند الحفظ المتزامن
+            if self.rental_id:
+                Rental.objects.select_for_update().only("id").get(pk=self.rental_id)
 
-            # --- إنشاء المرجع اعتمادًا على تاريخ السند ---
-            self.reference = generate_payment_reference(payment_date=self.payment_date)
+            # توليد المرجع تلقائيًا عند أول حفظ فقط
+            if not self.reference:
+                from apps.accounting.services import generate_payment_reference
 
-        # --- الحفظ هنا يبقى حفظًا فقط بدون أي منطق محاسبي ---
-        return super().save(*args, **kwargs)
+                self.reference = generate_payment_reference(
+                    payment_date=self.payment_date
+                )
+
+            # نطبق كل تحقق الموديل قبل أي حفظ فعلي
+            self.full_clean()
+
+            return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # --- منع حذف السند إذا كان مرحلًا أو مرتبطًا بقيد ---

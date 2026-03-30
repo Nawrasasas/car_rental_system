@@ -7,15 +7,19 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("", TemplateView.as_view(template_name="public/home.html"), name="home"),
     path("admin/", custom_admin_site.urls),
+
+    # --- حاشية: هذا المسار القديم يبقى كما هو حتى لا نكسر أي شاشة HTML حالية ---
+    path("accounts/", include("apps.accounts.urls")),
+
+    # --- حاشية: هذا المسار الجديد هو الذي سيستخدمه تطبيق الموبايل ---
+    path("auth/", include("apps.accounts.urls")),
+
     path("invoices/", include("apps.invoices.urls")),
-    # تأكد أن المسارات تبدأ بـ apps.
     path("rentals/", include("apps.rentals.urls")),
     path("vehicles/", include("apps.vehicles.urls")),
     path("customers/", include("apps.customers.urls")),
-    path("accounts/", include("apps.accounts.urls")),
     path("payments/", include("apps.payments.urls")),
-    # أضف هذا السطر مع مسارات التطبيقات في config/urls.py
     path("reports/", include("apps.reports.urls")),
 ]
-static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

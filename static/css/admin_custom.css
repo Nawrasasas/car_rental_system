@@ -692,9 +692,102 @@ td {
     }
 }
 /* --- جعل صفوف العقود تبدو قابلة للضغط --- */
-#result_list tbody tr {
-    transition: background-color 0.15s ease;
+#result_list tbody th a {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid #cfe0ff !important;
+    background: #f7faff !important;
+    color: #3b82f6 !important;
+    text-decoration: none !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    transition: all 0.16s ease-in-out !important;
 }
+
+/* --- المرور بالماوس: لون ألطف وليس ممتلئًا بقوة --- */
+#result_list tbody th a:hover {
+    background: #eef4ff !important;
+    border-color: #bcd3ff !important;
+    color: #2563eb !important;
+    text-decoration: none !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.10) !important;
+}
+
+#result_list tbody th a:focus,
+#result_list tbody th a:active {
+    background: #e8f0ff !important;
+    border-color: #93c5fd !important;
+    color: #1d4ed8 !important;
+    text-decoration: none !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.20) !important;
+}
+
+/* --- visited لا يغير الألوان إطلاقًا --- */
+#result_list tbody th a:visited {
+    color: #3b82f6 !important;
+    text-decoration: none !important;
+}
+
+/* --- تحسين تموضع الخلية --- */
+#result_list tbody th {
+    vertical-align: middle !important;
+}
+
+/* --- إذا كان الصف محددًا أو عليه تركيز من Django Admin --- */
+/* --- نجعل الرابط يبقى واضحًا ولا يتحول لزر مطموس --- */
+#result_list tbody tr.selected th a,
+#result_list tbody tr:focus-within th a {
+    background: #edf4ff !important;
+    border-color: #bfd7ff !important;
+    color: #2563eb !important;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.08) !important;
+}
+
+/* --- Dark mode --- */
+@media (prefers-color-scheme: dark) {
+    #result_list tbody th a {
+        background: #111827 !important;
+        border-color: #334155 !important;
+        color: #93c5fd !important;
+        box-shadow: none !important;
+    }
+
+    #result_list tbody th a:hover {
+        background: #172033 !important;
+        border-color: #475569 !important;
+        color: #bfdbfe !important;
+        box-shadow: 0 4px 10px rgba(147, 197, 253, 0.10) !important;
+    }
+
+    #result_list tbody th a:focus,
+    #result_list tbody th a:active {
+        background: #1e293b !important;
+        border-color: #60a5fa !important;
+        color: #dbeafe !important;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18) !important;
+    }
+
+    #result_list tbody th a:visited {
+        color: #93c5fd !important;
+    }
+
+    #result_list tbody tr.selected th a,
+    #result_list tbody tr:focus-within th a {
+        background: #1a2332 !important;
+        border-color: #475569 !important;
+        color: #bfdbfe !important;
+        box-shadow: none !important;
+    }
+}
+لماذا هذا يحل المشكلتين
 
 /* --- تمييز الصف عند المرور عليه --- */
 #result_list tbody tr:hover {
@@ -722,12 +815,13 @@ td {
 
 /* الصف: نضيف محاذاة ومسافة بين الاسم والقيمة */
 .rental-payment-summary__row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 14px;
-    padding: 6px 0;
-    border-bottom: 1px solid #e2e8f0;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 12px 0;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 18px;
+    gap: 20px;
 }
 
 /* آخر صف يبقى كما هو */
@@ -842,4 +936,169 @@ td {
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
+}
+/* =========================================
+   Soft admin navigation links
+   ========================================= */
+
+/* -------- LEFT SIDEBAR: model links only -------- */
+#nav-sidebar .module td a {
+    display: block !important;
+    padding: 6px 10px !important;
+    margin: 3px 0 !important;
+    border-radius: 9px !important;
+    background: #f8fbff !important;
+    border: 1px solid #dbeafe !important;
+    color: #2563eb !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05) !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+#nav-sidebar .module td a:hover {
+    background: #eef6ff !important;
+    border-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+    text-decoration: none !important;
+    transform: none !important;
+    box-shadow: 0 2px 5px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* العنصر الحالي */
+#nav-sidebar .current-model a,
+#nav-sidebar .module td a[aria-current="page"] {
+    background: #edf4ff !important;
+    border-color: #93c5fd !important;
+    color: #1d4ed8 !important;
+    font-weight: 700 !important;
+}
+
+/* لا نلمس عناوين الأقسام الداكنة إلا لمسة خفيفة */
+#nav-sidebar .module th,
+#nav-sidebar .module caption,
+#nav-sidebar .module h2 {
+    border-radius: 7px !important;
+    padding: 8px 10px !important;
+    box-shadow: none !important;
+}
+
+/* -------- ADMIN HOME PAGE: main model links -------- */
+/* اسم التطبيق نفسه */
+#content-main .app-accounting th a,
+#content-main .app-rentals th a,
+#content-main .app-vehicles th a,
+#content-main .app-customers th a,
+#content-main .app-branches th a,
+#content-main .app-reports th a,
+#content-main .app-auth th a,
+#content-main .app-accounts th a,
+#content-main .app-deposits th a,
+#content-main .app-payments th a,
+#content-main .app-invoices th a,
+#content-main .app-traffic_fines th a,
+#content-main .app-vehicle_usage th a {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 32px !important;
+    padding: 5px 11px !important;
+    border-radius: 9px !important;
+    background: #f8fbff !important;
+    border: 1px solid #dbeafe !important;
+    color: #2563eb !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05) !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+#content-main .app-accounting th a:hover,
+#content-main .app-rentals th a:hover,
+#content-main .app-vehicles th a:hover,
+#content-main .app-customers th a:hover,
+#content-main .app-branches th a:hover,
+#content-main .app-reports th a:hover,
+#content-main .app-auth th a:hover,
+#content-main .app-accounts th a:hover,
+#content-main .app-deposits th a:hover,
+#content-main .app-payments th a:hover,
+#content-main .app-invoices th a:hover,
+#content-main .app-traffic_fines th a:hover,
+#content-main .app-vehicle_usage th a:hover {
+    background: #eef6ff !important;
+    border-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+    text-decoration: none !important;
+}
+
+/* نبقي روابط Add/View الافتراضية هادئة وصغيرة */
+#content-main td a.addlink,
+#content-main td a.viewlink {
+    border-radius: 6px !important;
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+}
+
+/* -------- Dark mode -------- */
+@media (prefers-color-scheme: dark) {
+    #nav-sidebar .module td a {
+        background: #111827 !important;
+        border-color: #334155 !important;
+        color: #93c5fd !important;
+        box-shadow: none !important;
+    }
+
+    #nav-sidebar .module td a:hover {
+        background: #162033 !important;
+        border-color: #475569 !important;
+        color: #bfdbfe !important;
+    }
+
+    #nav-sidebar .current-model a,
+    #nav-sidebar .module td a[aria-current="page"] {
+        background: #18263a !important;
+        border-color: #475569 !important;
+        color: #dbeafe !important;
+    }
+
+    #content-main .app-accounting th a,
+    #content-main .app-rentals th a,
+    #content-main .app-vehicles th a,
+    #content-main .app-customers th a,
+    #content-main .app-branches th a,
+    #content-main .app-reports th a,
+    #content-main .app-auth th a,
+    #content-main .app-accounts th a,
+    #content-main .app-deposits th a,
+    #content-main .app-payments th a,
+    #content-main .app-invoices th a,
+    #content-main .app-traffic_fines th a,
+    #content-main .app-vehicle_usage th a {
+        background: #111827 !important;
+        border-color: #334155 !important;
+        color: #93c5fd !important;
+        box-shadow: none !important;
+    }
+
+    #content-main .app-accounting th a:hover,
+    #content-main .app-rentals th a:hover,
+    #content-main .app-vehicles th a:hover,
+    #content-main .app-customers th a:hover,
+    #content-main .app-branches th a:hover,
+    #content-main .app-reports th a:hover,
+    #content-main .app-auth th a:hover,
+    #content-main .app-accounts th a:hover,
+    #content-main .app-deposits th a:hover,
+    #content-main .app-payments th a:hover,
+    #content-main .app-invoices th a:hover,
+    #content-main .app-traffic_fines th a:hover,
+    #content-main .app-vehicle_usage th a:hover {
+        background: #162033 !important;
+        border-color: #475569 !important;
+        color: #bfdbfe !important;
+    }
 }

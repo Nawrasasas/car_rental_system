@@ -12,7 +12,8 @@ class ApiClient {
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
+        // حاشية: DRF TokenAuthentication يتوقع Token وليس Bearer
+        if (_token != null) 'Authorization': 'Token $_token',
       };
 
   Future<Map<String, dynamic>> get(String path) async {
@@ -31,10 +32,12 @@ class ApiClient {
 
   Map<String, dynamic> _process(http.Response response) {
     final raw = response.body.isNotEmpty ? jsonDecode(response.body) : <String, dynamic>{};
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (raw is Map<String, dynamic>) return raw;
       return {'results': raw};
     }
+
     throw Exception(
       raw is Map<String, dynamic>
           ? (raw['detail']?.toString() ?? 'API error ${response.statusCode}')

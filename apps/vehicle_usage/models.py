@@ -135,12 +135,8 @@ class VehicleUsage(models.Model):
 
     def clean(self):
         # --- منع اختيار سيارة غير متاحة عند إنشاء سجل جديد ---
-        if not self.pk and self.vehicle and self.vehicle.status != "available":
-            raise ValidationError(
-                {
-                    "vehicle": "Only available vehicles can be assigned to internal usage."
-                }
-            )
+        if not self.pk and self.vehicle_id and self.vehicle.status != "available":
+            raise ValidationError({"vehicle": "Selected vehicle is not available."})
 
         # --- منع وقت إرجاع متوقع أقدم من وقت البداية ---
         if (
@@ -190,18 +186,22 @@ class VehicleUsage(models.Model):
                 }
             )
 
+        
         # --- منع وجود استخدام داخلي نشط آخر لنفس السيارة ---
-        active_qs = VehicleUsage.objects.filter(
-            vehicle=self.vehicle,
-            status=self.STATUS_ACTIVE,
-        )
-        if self.pk:
-            active_qs = active_qs.exclude(pk=self.pk)
-
-        if active_qs.exists():
-            raise ValidationError(
-                {"vehicle": "This vehicle already has an active internal usage record."}
+        if self.vehicle_id:
+            active_qs = VehicleUsage.objects.filter(
+                vehicle_id=self.vehicle_id,
+                status=self.STATUS_ACTIVE,
             )
+            if self.pk:
+                active_qs = active_qs.exclude(pk=self.pk)
+
+            if active_qs.exists():
+                raise ValidationError(
+                    {
+                        "vehicle": "This vehicle already has an active internal usage record."
+                    }
+                )
 
         # --- بعد الإرجاع أو الإلغاء نمنع تعديل أصل السجل الحساس ---
         if self.pk:

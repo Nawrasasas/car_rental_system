@@ -14,7 +14,7 @@ import 'features/vehicles/domain/vehicles_repository.dart';
 import 'features/vehicles/presentation/vehicles_controller.dart';
 
 void main() {
-  final apiClient = ApiClient(baseUrl: 'http://127.0.0.1:8000/api/v1');
+  final apiClient = ApiClient(baseUrl: 'http://127.0.0.1:8000');
   final tokenStorage = TokenStorage();
   final vehiclesRepo = VehiclesRepositoryImpl(apiClient);
   final rentalsRepo = RentalsRepositoryImpl(apiClient);

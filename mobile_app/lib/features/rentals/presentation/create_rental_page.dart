@@ -36,6 +36,7 @@ class _CreateRentalPageState extends State<CreateRentalPage> {
   @override
   Widget build(BuildContext context) {
     final repo = context.read<RentalsRepository>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Create Rental')),
       body: Padding(
@@ -49,40 +50,65 @@ class _CreateRentalPageState extends State<CreateRentalPage> {
               _field(_customerId, 'Customer ID'),
               _field(_vehicleId, 'Vehicle ID'),
               _field(_branchId, 'Branch ID'),
-              _field(_startDate, 'Start Date (ISO: 2026-03-28T10:00:00Z)'),
-              _field(_endDate, 'End Date (ISO)'),
+
+              // حاشية: نعتمد وقت بغداد المحلي كما هو في النظام، وليس UTC
+              _field(_startDate, 'Start Date (Baghdad: 2026-03-28 10:00:00)'),
+              _field(_endDate, 'End Date (Baghdad: 2026-03-29 10:00:00)'),
+
               _field(_dailyRate, 'Daily Rate'),
               const SizedBox(height: 16),
-              if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Colors.red)),
               FilledButton(
                 onPressed: _loading
                     ? null
                     : () async {
                         if (!_form.currentState!.validate()) return;
+
                         setState(() {
                           _loading = true;
                           _error = null;
                         });
-                        final result = await repo.createRental({
-                          'customer_id': int.parse(_customerId.text),
-                          'vehicle_id': int.parse(_vehicleId.text),
-                          'branch_id': int.parse(_branchId.text),
-                          'start_date': _startDate.text.trim(),
-                          'end_date': _endDate.text.trim(),
-                          'daily_rate': _dailyRate.text.trim(),
-                        });
-                        if (!mounted) return;
-                        setState(() => _loading = false);
-                        if (result.isSuccess) {
-                          Navigator.pop(context);
-                        } else {
-                          setState(() => _error = result.error);
+
+                        try {
+                          final customerId = int.parse(_customerId.text.trim());
+                          final vehicleId = int.parse(_vehicleId.text.trim());
+                          final branchId = int.parse(_branchId.text.trim());
+
+                          final result = await repo.createRental({
+                            'customer_id': customerId,
+                            'vehicle_id': vehicleId,
+                            'branch_id': branchId,
+                            'start_date': _startDate.text.trim(),
+                            'end_date': _endDate.text.trim(),
+                            'daily_rate': _dailyRate.text.trim(),
+                          });
+
+                          if (!mounted) return;
+
+                          setState(() => _loading = false);
+
+                          if (result.isSuccess) {
+                            Navigator.pop(context);
+                          } else {
+                            setState(() => _error = result.error);
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() {
+                            _loading = false;
+                            _error = 'Customer ID, Vehicle ID, and Branch ID must be numeric database IDs only.';
+                          });
                         }
                       },
                 child: _loading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text('Create Rental'),
-              )
+              ),
             ],
           ),
         ),

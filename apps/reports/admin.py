@@ -148,18 +148,76 @@ class IncomeStatementAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + urls
+    
+    def export_income_statement_excel(self, income_data):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Income Statement"
+
+        ws.append(["Income Statement"])
+        ws.append(["Period Start", str(income_data["period_start"])])
+        ws.append(["Period End", str(income_data["period_end"])])
+        ws.append([])
+
+        ws.append(["REVENUES"])
+        ws.append(["Code", "Account Name", "Balance"])
+
+        for rev in income_data["revenues"]:
+            ws.append([
+                rev["code"],
+                rev["name"],
+                float(rev["balance"] or 0),
+            ])
+
+        ws.append(["", "Total Revenues", float(income_data["total_revenue"] or 0)])
+        ws.append([])
+
+        ws.append(["EXPENSES"])
+        ws.append(["Code", "Account Name", "Balance"])
+
+        for exp in income_data["expenses"]:
+            ws.append([
+                exp["code"],
+                exp["name"],
+                float(exp["balance"] or 0),
+            ])
+
+        ws.append(["", "Total Expenses", float(income_data["total_expense"] or 0)])
+        ws.append([])
+        ws.append(["", "Net Income", float(income_data["net_income"] or 0)])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="income_statement.xlsx"'
+        wb.save(response)
+        return response
 
     def income_dashboard(self, request):
         context = dict(self.admin_site.each_context(request))
+        context["title"] = "Income Statement"
 
         today = timezone.now().date()
         start_of_month = today.replace(day=1)
 
-        income_data = get_income_statement(start_date=start_of_month, end_date=today)
+        start_date = request.GET.get("start_date")
+        end_date = request.GET.get("end_date")
 
-        context["title"] = "Income Statement"
+        # إذا لم يُدخل المستخدم شيئًا، نستخدم افتراضيًا أول الشهر إلى اليوم
+        if not start_date:
+            start_date = start_of_month.isoformat()
+
+        if not end_date:
+            end_date = today.isoformat()
+
+        income_data = get_income_statement(
+            start_date=start_date,
+            end_date=end_date,
+        )
+
         context["income_data"] = income_data
-
+        if request.GET.get("export") == "excel":
+            return self.export_income_statement_excel(income_data)
         return TemplateResponse(request, "admin/reports/income_statement.html", context)
 
 
@@ -177,6 +235,48 @@ class GeneralLedgerAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
+
+    def export_general_ledger_excel(self, ledger_data):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "General Ledger"
+
+        ws.append(["General Ledger"])
+        ws.append(["Account Name", ledger_data["account_name"]])
+        ws.append(["Account Code", ledger_data["account_code"]])
+        ws.append(["Opening Balance", float(ledger_data["opening_balance"] or 0)])
+        ws.append([])
+
+        ws.append([
+            "Date",
+            "Entry No.",
+            "Description",
+            "Source",
+            "Debit",
+            "Credit",
+            "Running Balance",
+        ])
+
+        for line in ledger_data["transactions"]:
+            ws.append([
+                str(line["date"]) if line.get("date") else "",
+                line.get("entry_number", ""),
+                line.get("description", ""),
+                line.get("source_label", ""),
+                float(line.get("debit", 0) or 0),
+                float(line.get("credit", 0) or 0),
+                float(line.get("balance", 0) or 0),
+            ])
+
+        ws.append([])
+        ws.append(["", "", "", "Closing Balance", "", "", float(ledger_data["closing_balance"] or 0)])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="general_ledger.xlsx"'
+        wb.save(response)
+        return response
 
     def ledger_dashboard(self, request):
         context = dict(self.admin_site.each_context(request))
@@ -196,6 +296,8 @@ class GeneralLedgerAdmin(admin.ModelAdmin):
                     end_date=end_date if end_date else None,
                 )
                 context["ledger_data"] = ledger_data
+                if request.GET.get("export") == "excel":
+                    return self.export_general_ledger_excel(ledger_data)
             except Exception as e:
                 # Handle errors (like invalid account code)
                 from django.contrib import messages

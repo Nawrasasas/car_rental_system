@@ -1,0 +1,134 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrastyle %}
+    {{ block.super }}
+
+    <style>
+      .journal-date-bar {
+        margin: 0 0 18px 0;
+        padding: 14px 16px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+
+      .journal-date-bar-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 10px;
+      }
+
+      .journal-date-bar-form {
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .journal-date-bar-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 170px;
+      }
+
+      .journal-date-bar-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .journal-date-bar-group input[type="date"] {
+        height: 40px;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+        color: #0f172a;
+        box-sizing: border-box;
+      }
+
+      .journal-date-bar-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .journal-date-btn {
+        height: 40px;
+        padding: 0 14px;
+        border: none;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .journal-date-btn:hover {
+        background: #1d4ed8;
+      }
+
+      .journal-date-clear {
+        height: 40px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        background: #fff;
+        font-weight: 600;
+        box-sizing: border-box;
+      }
+
+      .journal-date-clear:hover {
+        background: #f8fafc;
+      }
+    </style>
+{% endblock %}
+
+{% block content_title %}
+    {{ block.super }}
+
+    <div class="journal-date-bar">
+      <div class="journal-date-bar-title">Filter Journal Entries by Date</div>
+
+      <form method="get" class="journal-date-bar-form">
+        {% for key, value in journal_date_preserved_params %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+
+        <div class="journal-date-bar-group">
+          <label for="id_journal_date_from">From</label>
+          <input
+            type="date"
+            id="id_journal_date_from"
+            name="journal_date_from"
+            value="{{ journal_date_from }}"
+          >
+        </div>
+
+        <div class="journal-date-bar-group">
+          <label for="id_journal_date_to">To</label>
+          <input
+            type="date"
+            id="id_journal_date_to"
+            name="journal_date_to"
+            value="{{ journal_date_to }}"
+          >
+        </div>
+
+        <div class="journal-date-bar-actions">
+          <button type="submit" class="journal-date-btn">Apply</button>
+
+          {% if journal_date_from or journal_date_to %}
+            <a href="?" class="journal-date-clear">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+{% endblock %}

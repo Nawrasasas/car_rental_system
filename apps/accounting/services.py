@@ -277,10 +277,12 @@ def create_journal_entry(
             f"Unbalanced journal entry. Debit={total_debit}, Credit={total_credit}"
         )
 
-    # بما أن موديل JournalEntry الحالي لا يملك دالة post()
-    # فنحوّل حالة القيد يدويًا من draft إلى posted بعد التأكد من التوازن.
-    entry.state = EntryState.POSTED
-    entry.save(update_fields=["state"])
+    # نمرر الترحيل من دالة post() داخل الموديل حتى يبقى منطق الترحيل في مكان واحد
+    # هذا يضمن تعبئة posted_at وتطبيق التحقق والقفل بنفس المسار الرسمي
+    entry.post()
+
+    # نعيد تحميل القيم المحدثة من قاعدة البيانات حتى يبقى الكائن متزامنًا
+    entry.refresh_from_db(fields=["state", "posted_at", "updated_at"])
 
     # إعادة القيد الناتج لاستخدامه في ربط المصدر.
     return entry

@@ -2,12 +2,43 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from core.admin_site import custom_admin_site
-from .models import Deposit, DepositRefund
+from .models import Deposit, DepositRefund, DepositStatus
 from .services import process_deposit, process_deposit_refund
 from django.utils.html import format_html
+from django.forms.models import BaseInlineFormSet
+
+
+class DepositRefundInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        # --- تنفيذ فحص Django الأساسي أولًا ---
+        super().clean()
+
+        # --- إذا كان هناك أخطاء أخرى أصلًا فلا نكمل ---
+        if any(self.errors):
+            return
+
+        for form in self.forms:
+            # --- نتجاهل الصفوف الفارغة ---
+            if not hasattr(form, "cleaned_data") or not form.cleaned_data:
+                continue
+
+            # --- نتجاهل الصفوف المحذوفة إن وُجدت ---
+            if form.cleaned_data.get("DELETE", False):
+                continue
+
+            refund = form.instance
+
+            # --- إذا كان هذا Refund موجودًا مسبقًا ومرحّلًا وتم تعديل أي حقل فيه ---
+            # --- نعرض رسالة داخل الفورم بدل صفحة خطأ ---
+            if refund and refund.pk and refund.journal_entry_id and form.changed_data:
+                raise ValidationError(
+                    "Posted deposit refunds cannot be edited. Please add a new refund line instead."
+                )
+
 
 class DepositRefundInline(admin.TabularInline):
     model = DepositRefund
+    formset = DepositRefundInlineFormSet
     extra = 0
     fields = (
         "reference",
@@ -23,6 +54,31 @@ class DepositRefundInline(admin.TabularInline):
     )
 
 
+class DepositCollectionStatusFilter(admin.SimpleListFilter):
+    # --- فلتر مشتق من وجود قيد القبض الفعلي ---
+    title = "Collection Status"
+    parameter_name = "collection_status"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("pending_collection", "Pending Collection"),
+            ("received", "Received"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+
+        # --- إذا لا يوجد قيد قبض بعد فالحالة المشتقة هي Pending Collection ---
+        if value == "pending_collection":
+            return queryset.filter(journal_entry__isnull=True)
+
+        # --- إذا وجد قيد قبض فالحالة المشتقة هي Received ---
+        if value == "received":
+            return queryset.filter(journal_entry__isnull=False)
+
+        return queryset
+
+
 class DepositAdmin(admin.ModelAdmin):
     # الأعمدة الظاهرة في قائمة التأمينات
     list_display = (
@@ -31,7 +87,6 @@ class DepositAdmin(admin.ModelAdmin):
         "amount",
         "deposit_date",
         "method",
-        "status",
         "journal_entry",
         "created_at",
         "refunded_amount_display",
@@ -41,11 +96,10 @@ class DepositAdmin(admin.ModelAdmin):
 
     # الفلاتر الجانبية
     list_filter = (
-        "status",
+        DepositCollectionStatusFilter,
         "method",
         "deposit_date",
         "created_at",
-
     )
 
     search_fields = (
@@ -67,9 +121,7 @@ class DepositAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
-    # تنظيم شاشة الإدخال/التعديل
     fieldsets = (
-
         (
             "Basic Information",
             {
@@ -78,7 +130,6 @@ class DepositAdmin(admin.ModelAdmin):
                     "amount",
                     "deposit_date",
                     "method",
-                    "status",
                 )
             },
         ),
@@ -116,6 +167,30 @@ class DepositAdmin(admin.ModelAdmin):
 
     remaining_amount_display.short_description = "Remaining"
 
+    def collection_status_display(self, obj):
+        # --- حاشية عربية: الحالة هنا مشتقة فقط من وجود قيد قبض فعلي ---
+        # --- لا نعتمد على الحقل المخزن status لأنه لم يعد مصدر الحقيقة ---
+        derived_status = obj.calculated_status
+
+        if derived_status == DepositStatus.RECEIVED:
+            return format_html(
+                "{}",
+                '<span style="background:#16a34a; color:white; padding:3px 10px; '
+                'border-radius:20px; font-size:10px; font-weight:bold;">'
+                "Received"
+                "</span>",
+            )
+
+        return format_html(
+            "{}",
+            '<span style="background:#f59e0b; color:white; padding:3px 10px; '
+            'border-radius:20px; font-size:10px; font-weight:bold;">'
+            "Pending Collection"
+            "</span>",
+        )
+
+    collection_status_display.short_description = "Collection Status"
+
     def refund_summary(self, obj):
         refund_count = obj.refunds.count()
         if refund_count == 0:
@@ -125,6 +200,11 @@ class DepositAdmin(admin.ModelAdmin):
     refund_summary.short_description = "Refund Summary"
 
     inlines = [DepositRefundInline]
+
+    def has_add_permission(self, request):
+        # --- منع إنشاء سند تأمين يدويًا من شاشة Deposits ---
+        # --- لأن التأمين يجب أن يُنشأ فقط من داخل العقد ---
+        return False
 
     def save_model(self, request, obj, form, change):
         # --- تمرير الحفظ كاملًا عبر الخدمة حتى يتم التحقق والترحيل وتوليد المرجع ---

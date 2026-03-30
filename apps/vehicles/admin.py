@@ -275,7 +275,7 @@ class InsuranceRenewalFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
-        today = timezone.localdate()
+        today = timezone.now().date()
         due_limit = today + timedelta(days=15)
 
         if value == "due_soon":
@@ -309,14 +309,11 @@ class VehicleAdmin(ImportExportModelAdmin):
         'plate_number',
         'brand',
         'model',
-        'vin_number',
         'status_with_insurance',
         'current_rental_number',
         'current_rental_branch',
         'branch',
-        'daily_price',
-        'current_odometer',
-        'is_active',
+        'daily_price', 
     )
 
     # --- الفلاتر الجانبية ---
@@ -343,7 +340,7 @@ class VehicleAdmin(ImportExportModelAdmin):
     # --- الحقول القابلة للتعديل مباشرة من قائمة السيارات ---
     list_editable = (
         'daily_price',
-        'is_active',
+        
     )
 
     # --- ترتيب صفحة البطاقة إلى 3 أقسام رئيسية ---
@@ -413,7 +410,7 @@ class VehicleAdmin(ImportExportModelAdmin):
 
     def status_with_insurance(self, obj):
         # --- تاريخ اليوم ---
-        today = timezone.localdate()
+        today = today = timezone.now().date()
 
         # --- حد التنبيه: قبل 15 يوم ---
         due_limit = today + timedelta(days=15)
@@ -707,27 +704,32 @@ class VehicleAdmin(ImportExportModelAdmin):
 
         # --- جلب الكويري الحالي بعد تطبيق أي فلتر من المستخدم ---
         cl = self.get_changelist_instance(request)
-        queryset = cl.get_queryset(request)
 
-        # --- حساب الإحصائيات الحالية بحسب الفلاتر المختارة ---
-        stats = queryset.aggregate(
+        # --- نستخدم root_queryset مثل صفحة العقود ---
+        # --- حتى تبقى أرقام كل البطاقات صحيحة عند الضغط على أي حالة ---
+        base_qs = cl.root_queryset
+
+        # --- نحسب العدادات من الأساس العام للقائمة ---
+        # --- وليس من queryset المفلتر بالحالة الحالية ---
+        stats = base_qs.aggregate(
             total=Count("id"),
             available=Count("id", filter=Q(status="available")),
             internal_use=Count("id", filter=Q(status="internal_use")),
             rented=Count("id", filter=Q(status="rented")),
             maintenance=Count(
                 "id", filter=Q(status="maintenance")
-            ),  # حاشية: عدّ مستقل لحالة maintenance
+            ),  # حاشية عربية: عدّ مستقل لحالة maintenance
             service=Count(
                 "id", filter=Q(status="service")
-            ),  # حاشية: عدّ مستقل لحالة service
+            ),  # حاشية عربية: عدّ مستقل لحالة service
             out_of_service=Count("id", filter=Q(status="out_of_service")),
             accident=Count("id", filter=Q(status="accident")),
             stolen=Count("id", filter=Q(status="stolen")),
         )
 
-        # --- الاحتفاظ بباراميترات الفلترة الحالية ---
+        # --- نحتفظ ببقية الفلاتر الحالية ونزيل رقم الصفحة ---
         current_params = request.GET.copy()
+        current_params.pop("p", None)
 
         # --- دالة مساعدة لإنشاء روابط الفلترة السريعة ---
         def get_filter_url(status_val):
