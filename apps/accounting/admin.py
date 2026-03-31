@@ -420,7 +420,7 @@ class JournalEntryAdmin(admin.ModelAdmin):
         css = {
             "all": (
                 "css/attachment_gallery_inline.css",
-                "admin/css/rental_admin.css",  # --- تحميل CSS الذي يجعل فلتر الجانب ثابتًا وبسكرول داخلي ---
+                
             )
         }
 

@@ -1,0 +1,236 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=21">
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+{% block content %}
+
+<div class="ops-dashboard">
+    <header class="ops-dashboard__head">
+        <div class="ops-dashboard__head-copy">
+            <div class="ops-dashboard__eyebrow">Operations Dashboard</div>
+            <h1 class="ops-dashboard__title">Live rental, fleet, and finance overview</h1>
+            <div class="ops-dashboard__meta">
+                <span>{{ dashboard_scope_label }}</span>
+                <span>Updated {{ dashboard_generated_at }}</span>
+            </div>
+        </div>
+
+        <div class="ops-dashboard__actions">
+            {% for action in dashboard_quick_actions %}
+                <a href="{{ action.url }}" class="action-pill action-pill--{{ action.variant }}">
+                    {{ action.label }}
+                </a>
+            {% endfor %}
+        </div>
+    </header>
+
+    <section class="quick-jump-strip">
+        <a href="{% url 'admin:rentals_rental_changelist' %}" class="quick-jump">Rentals</a>
+        <a href="{% url 'admin:vehicles_vehicle_changelist' %}" class="quick-jump">Vehicles</a>
+        <a href="{% url 'admin:customers_customer_changelist' %}" class="quick-jump">Customers</a>
+        <a href="{% url 'admin:payments_payment_changelist' %}" class="quick-jump">Payments</a>
+        <a href="{% url 'admin:deposits_deposit_changelist' %}" class="quick-jump">Deposits</a>
+        <a href="{% url 'admin:traffic_fines_trafficfine_changelist' %}" class="quick-jump">Traffic Fines</a>
+        <a href="{% url 'admin:invoices_invoice_changelist' %}" class="quick-jump">Invoices</a>
+        <a href="{% url 'admin:reports_salesreport_changelist' %}" class="quick-jump">Reports</a>
+    </section>
+
+    <section class="metric-strip">
+        {% for card in dashboard_metric_cards %}
+            <a href="{{ card.url }}" class="metric-card metric-card--{{ card.tone }}">
+                <div class="metric-card__label">{{ card.label }}</div>
+                <div class="metric-card__value">{{ card.value }}</div>
+            </a>
+        {% endfor %}
+    </section>
+
+    <section class="dashboard-grid dashboard-grid--main">
+        <div class="surface surface--primary">
+            ...Rental Attention...
+        </div>
+    </section>
+
+    <section class="dashboard-grid dashboard-grid--three">
+        <div class="surface">
+            <div class="section-head">
+                <div>
+                    <div class="section-eyebrow">Fleet</div>
+                    <h2>Fleet Watch</h2>
+                </div>
+                <a href="{% url 'admin:vehicles_vehicle_changelist' %}" class="section-link">Open Vehicles</a>
+            </div>
+
+            <div class="mini-metrics">
+                {% for card in dashboard_fleet_cards %}
+                    <a href="{{ card.url }}" class="mini-metric mini-metric--{{ card.tone }}">
+                        <div class="mini-metric__value">{{ card.value }}</div>
+                        <div class="mini-metric__label">{{ card.label }}</div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="surface">
+            <div class="section-head">
+                <div>
+                    <div class="section-eyebrow">Finance</div>
+                    <h2>Financial Watch</h2>
+                </div>
+                <a href="{% url 'admin:payments_payment_changelist' %}" class="section-link">Open Payments</a>
+            </div>
+
+            <div class="financial-list">
+                {% for card in dashboard_financial_cards %}
+                    <div class="financial-row">
+                        <div class="financial-row__copy">
+                            <div class="financial-row__label">{{ card.label }}</div>
+                            <div class="financial-row__hint">{{ card.hint }}</div>
+                        </div>
+                        <div class="financial-row__value">{{ card.value }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="surface">
+            <div class="section-head">
+                <div>
+                    <div class="section-eyebrow">Activity</div>
+                    <h2>Recent Activity</h2>
+                </div>
+            </div>
+
+            <div class="timeline">
+                {% for item in dashboard_recent_activity %}
+                    <a href="{{ item.url }}" class="timeline-row">
+                        <div class="timeline-row__kind">{{ item.kind }}</div>
+                        <div class="timeline-row__body">
+                            <div class="timeline-row__title">{{ item.title }}</div>
+                            <div class="timeline-row__meta">{{ item.meta }}</div>
+                        </div>
+                        <div class="timeline-row__time">{{ item.when|date:"d M H:i" }}</div>
+                    </a>
+                {% empty %}
+                    <div class="empty-state">No recent activity.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="surface">
+        <div class="section-head">
+            <div>
+                <div class="section-eyebrow">Alerts</div>
+                <h2>Compliance & Expiry Alerts</h2>
+            </div>
+        </div>
+
+        <div class="compliance-grid">
+            {% for group in dashboard_compliance_groups %}
+                <div class="compliance-group">
+                    <div class="mini-head">
+                        <h3>{{ group.title }}</h3>
+                    </div>
+
+                    {% if group.items %}
+                        <div class="list-stack">
+                            {% for item in group.items %}
+                                <a href="{{ item.url }}" class="list-row list-row--compact">
+                                    <div class="list-row__main">
+                                        <div class="list-row__title">{{ item.title }}</div>
+                                        <div class="list-row__subtitle">{{ item.subtitle }}</div>
+                                    </div>
+                                    <div class="list-row__meta">
+                                        <span class="badge">{{ item.badge }}</span>
+                                        {% if item.due %}
+                                            <span class="muted">{{ item.due }}</span>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">{{ group.empty }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="surface">
+        <div class="section-head">
+            <div>
+                <div class="section-eyebrow">Branches</div>
+                <h2>Branch Performance</h2>
+            </div>
+        </div>
+
+        <div class="branch-table">
+            <div class="branch-table__head">
+                <div>Branch</div>
+                <div>Active Rentals</div>
+                <div>Available Fleet</div>
+                <div>Collections Today</div>
+                <div>Utilization</div>
+            </div>
+
+            {% for row in dashboard_branch_rows %}
+                <div class="branch-table__row">
+                    <div>
+                        <div class="branch-name">{{ row.name }}</div>
+                        <div class="muted">{{ row.location }}</div>
+                    </div>
+                    <div>{{ row.active_rentals }}</div>
+                    <div>{{ row.available_vehicles }}</div>
+                    <div>{{ row.collections_today }}</div>
+                    <div>
+                        <div class="utilization">
+                            <div class="utilization__bar">
+                                <div class="utilization__fill" data-width="{{ row.utilization|default_if_none:0|floatformat:0 }}"></div>
+                            </div>
+                            <strong>{{ row.utilization|default:0 }}%</strong>
+                        </div>
+                    </div>
+                </div>
+                
+            {% empty %}
+                <div class="empty-state">No branches found.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="surface">
+        <div class="section-head">
+            <div>
+                <div class="section-eyebrow">Shortcuts</div>
+                <h2>Management Areas</h2>
+            </div>
+        </div>
+
+        <div class="module-grid">
+            {% for item in dashboard_modules %}
+                <a href="{{ item.url }}" class="module-tile">
+                    <div class="module-tile__title">{{ item.label }}</div>
+                    <div class="module-tile__desc">{{ item.desc }}</div>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.utilization__fill[data-width]').forEach(function (el) {
+        const value = parseFloat(el.dataset.width || '0');
+        const safeValue = Math.max(0, Math.min(100, value));
+        el.style.width = safeValue + '%';
+    });
+});
+</script>
+
+{% endblock %}

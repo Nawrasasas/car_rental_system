@@ -402,6 +402,19 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         ]
 
         response.context_data["rental_status_cards"] = rental_status_cards
+
+        response.context_data["rental_summary"] = {
+            "all_count": base_qs.count(),
+            "active_count": base_qs.filter(
+                status="active",
+                actual_return_date__isnull=True,
+            ).count(),
+            "overdue_count": base_qs.filter(
+                status="active",
+                actual_return_date__isnull=True,
+                end_date__lt=timezone.now(),
+            ).count(),
+        }
         return response
 
     def get_queryset(self, request):
@@ -547,7 +560,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         css = {
             "all": (
                 "css/attachment_gallery_inline.css", 
-                "admin/css/rental_admin.css",
+                
             )
         }
 
@@ -1346,7 +1359,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         # نعرض Active + Overdue بجانبها
         if obj.status == "active":
             base_badge = mark_safe(
-                '<span style="background:#f59e0b; color:white; padding:3px 10px; '
+                '<span style="background:#16a34a; color:white; padding:3px 10px; '
                 'border-radius:20px; font-size:10px; font-weight:bold; margin-right:6px;">Active</span>'
             )
 
@@ -1361,7 +1374,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
         if obj.status == 'completed':
             return mark_safe(
-                '<span style="background:#16a34a; color:white; padding:3px 10px; '
+                '<span style="background:#d97706; color:white; padding:3px 10px; '
                 'border-radius:20px; font-size:10px; font-weight:bold;">Completed</span>'
             )
 

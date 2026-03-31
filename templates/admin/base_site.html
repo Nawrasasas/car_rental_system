@@ -3,12 +3,19 @@
 
 {% block extrastyle %}
     {{ block.super }}
-    
-    <link rel="stylesheet" type="text/css" href="{% static 'css/admin_custom.css' %}?v=2">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/admin_custom.css' %}?v=20">
 {% endblock %}
 
 {% block branding %}
-    <h1 id="site-name">
-        <a href="{% url 'admin:index' %}">Muhanad Rental Cars</a>
-    </h1>
+    <div class="brand-shell">
+        <a href="{% url 'admin:index' %}" class="brand-link">
+            <span class="brand-mark">TRS</span>
+            <span class="brand-copy">
+                <strong>Top Rental System</strong>
+                <small>Operations Platform</small>
+            </span>
+        </a>
+    </div>
 {% endblock %}
+
+{% block nav-global %}{% endblock %}

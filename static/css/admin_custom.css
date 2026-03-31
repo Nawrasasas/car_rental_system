@@ -1,1104 +1,1434 @@
-/* 1. استيراد الخط العالمي (إضافة في أول السطر) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* 1. الشريط العلوي (الهيدر) - لون كحلي ملكي عميق */
-#header {
-    background: #0f172a !important; /* لون Slate 900 فخم جداً */
-    border-bottom: 1px solid #1e293b !important;
-    padding: 12px 20px !important;
+/* =========================================
+   CSS Variables
+   ========================================= */
+:root {
+    --app-bg: #eef3f8;
+    --surface: #ffffff;
+    --surface-soft: #f7fafc;
+    --surface-soft-2: #f2f6fb;
+
+    --text: #0f172a;
+    --text-soft: #334155;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+
+    --line: #dbe4ee;
+    --line-strong: #cdd8e5;
+
+    --blue: #2563eb;
+    --blue-soft: #edf4ff;
+
+    --green: #16a34a;
+    --green-soft: #eefaf2;
+
+    --red: #dc2626;
+    --red-soft: #fff3f3;
+
+    --amber: #d97706;
+    --amber-soft: #fff8ec;
+
+    --violet: #7c3aed;
+    --violet-soft: #f7f3ff;
+
+    --cyan: #0891b2;
+    --cyan-soft: #eefbff;
+
+    --slate: #64748b;
+    --slate-soft: #f3f6fa;
+
+    --radius-xl: 24px;
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+
+    --shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 16px 38px rgba(15, 23, 42, 0.05);
+
+    /* Rentals-specific tokens */
+    --r-blue: #4f6df5;
+    --r-blue-soft: #f4f7ff;
+    --r-blue-border: #dbe4ff;
+    --r-green: #16a34a;
+    --r-green-soft: #eefaf2;
+    --r-green-border: #d7eddd;
+    --r-amber: #d97706;
+    --r-amber-soft: #fff8ea;
+    --r-amber-border: #efe1b8;
+    --r-red: #dc2626;
+    --r-red-soft: #fff3f3;
+    --r-red-border: #f2d4d4;
+    --r-slate: #64748b;
+    --r-slate-soft: #f5f7fa;
+    --r-slate-border: #dde5ee;
+    --r-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+    --r-radius-xl: 24px;
+    --r-radius-lg: 18px;
+    --r-radius-md: 14px;
 }
 
-/* 2. اسم الموقع في الهيدر */
-#branding h1 {
-    color: #f8fafc !important;
-    font-weight: 700 !important;
-    font-size: 18px !important;
-}
-
-/* 3. خلفية عناوين التطبيقات (التي كانت أزرق باهت) */
-.module h2, .module caption, #changelist-filter h2 {
-    background: #1e293b !important; /* كحلي أفتح قليلاً من الهيدر */
-    color: #f1f5f9 !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    border-radius: 4px 4px 0 0 !important; /* زوايا علوية ناعمة */
-    padding: 10px 15px !important;
-}
-
-/* 4. تحسين لون الروابط في الهيدر (Welcome, Admin) */
-#user-tools a {
-    color: #94a3b8 !important;
-    font-weight: 500 !important;
-}
-
-#user-tools a:hover {
-    color: #ffffff !important;
-}
-
-/* 2. تغيير الخط للبرنامج بالكامل دون المساس بالتنسيقات الأخرى */
-html, body, div, span, h1, h2, h3, p, a, th, td, label, input, select {
+/* =========================================
+   Base
+   ========================================= */
+html,
+body,
+div,
+span,
+h1, h2, h3, h4, h5, h6,
+p, a, th, td, label,
+input, select, textarea, button {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
-/* 3. تحسين شكل القائمة الجانبية اليسرى (طبيعي في Light + صحيح في Dark) */
+html,
+body {
+    background: var(--app-bg) !important;
+    color: var(--text) !important;
+}
+
+body {
+    outline: 6px solid rgb(255, 255, 255) !important;
+}
+
+/* =========================================
+   Header
+   ========================================= */
+#header {
+    position: sticky !important;
+    top: 0;
+    z-index: 999 !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    backdrop-filter: blur(14px) !important;
+    border-bottom: 1px solid var(--line) !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04) !important;
+    padding: 10px 18px !important;
+}
+
+.brand-shell {
+    display: flex;
+    align-items: center;
+}
+
+.brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none !important;
+}
+
+.brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #16365f, #214a7b);
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: .05em;
+    box-shadow: 0 12px 24px rgba(22, 54, 95, 0.18);
+}
+
+.brand-copy {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.brand-copy strong {
+    color: var(--text) !important;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.brand-copy small {
+    color: var(--muted) !important;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* =========================================
+   Top tools
+   ========================================= */
+#user-tools,
+#user-tools a,
+#user-tools a:link,
+#user-tools a:visited,
+#user-tools button,
+#user-tools .theme-toggle {
+    color: #546579 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
+#user-tools a:hover,
+#user-tools button:hover,
+#user-tools .theme-toggle:hover {
+    color: var(--blue) !important;
+}
+
+/* =========================================
+   Breadcrumbs
+   ========================================= */
+div.breadcrumbs {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 0 16px !important;
+    margin: 0 !important;
+    color: var(--muted) !important;
+    font-size: 13px !important;
+}
+
+div.breadcrumbs a,
+div.breadcrumbs a:link,
+div.breadcrumbs a:visited,
+div.breadcrumbs span {
+    color: var(--muted) !important;
+}
+
+div.breadcrumbs a:hover {
+    color: var(--blue) !important;
+}
+
+/* =========================================
+   Content
+   ========================================= */
+#content {
+    padding: 22px 24px 30px !important;
+    background: transparent !important;
+}
+
+#content-main {
+    background: transparent !important;
+}
+
+/* =========================================
+   Sidebar
+   ========================================= */
 #nav-sidebar {
-    background-color: #ffffff !important;
+    background: transparent !important;
+    border-right: 0 !important;
+    padding: 10px 8px 16px 0 !important;
+    width: 230px !important;
 }
 
-#nav-sidebar .module th {
-    background: #f8fafc !important;
-    color: #64748b !important;
-    text-transform: uppercase !important;
-    font-size: 11px !important;
-    letter-spacing: 0.5px !important;
+#nav-sidebar .module {
+    margin-bottom: 14px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
-#nav-sidebar .module td a:hover {
-    background: #f1f5f9 !important;
-    color: #2563eb !important;
-    border-radius: 6px;
+#nav-sidebar .module table {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 
-/* عند تفعيل Dark Mode من المتصفح */
-@media (prefers-color-scheme: dark) {
-    #nav-sidebar {
-        background-color: #0b0f14 !important;
-        border-right: 1px solid #1f2937 !important;
-    }
-
-    #nav-filter {
-        background: #111827 !important;
-        color: #f9fafb !important;
-        border: 1px solid #374151 !important;
-    }
-
-    #nav-sidebar .module,
-    #nav-sidebar table,
-    #nav-sidebar tbody,
-    #nav-sidebar tr,
-    #nav-sidebar th,
-    #nav-sidebar td {
-        background: transparent !important;
-        border-color: #1f2937 !important;
-    }
-
-    #nav-sidebar .module th,
-    #nav-sidebar .module caption,
-    #nav-sidebar .module h2 {
-        background: #0f172a !important;
-        color: #e5e7eb !important;
-    }
-
-    #nav-sidebar a,
-    #nav-sidebar a:link,
-    #nav-sidebar a:visited {
-        color: #e5e7eb !important;
-    }
-
-    #nav-sidebar td a,
-    #nav-sidebar th a {
-        background: transparent !important;
-        color: #e5e7eb !important;
-    }
-
-    #nav-sidebar .module td a:hover,
-    #nav-sidebar .module th a:hover {
-        background: #1f2937 !important;
-        color: #ffffff !important;
-    }
-
-    #nav-sidebar td .addlink,
-    #nav-sidebar td a.addlink {
-        color: #22c55e !important;
-    }
-}
-/* --- واجهة الفلترة الاحترافية (Modern Enterprise UI) --- */
-
-/* 1. تنسيق الصندوق الجانبي بالكامل */
-#changelist-filter {
-    background-color: #fcfcfc !important;
-    border-left: none !important;
-    padding: 15px !important;
-    box-shadow: inset 2px 0 5px rgba(0,0,0,0.02);
-}
-
-/* 2. تحويل العناوين (By Status, By City) إلى شكل فخم */
-#changelist-filter h3 {
+#nav-sidebar .module th,
+#nav-sidebar .module caption,
+#nav-sidebar .module h2 {
+    background: transparent !important;
+    color: #8fa0b4 !important;
     font-size: 11px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
-    letter-spacing: 1.2px !important;
-    color: #1a2a6c !important; /* لون كحلي ملكي */
-    background: #f0f2f5 !important;
-    padding: 8px 12px !important;
-    border-radius: 8px !important;
-    margin: 20px 0 10px 0 !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* إضافة أيقونة سهم صغيرة قبل كل عنوان */
-#changelist-filter h3::before {
-    content: '▼';
-    font-size: 8px;
-    margin-right: 8px;
-    opacity: 0.6;
-}
-
-/* 3. تنسيق الأزرار (Pills) بلمسة عصرية */
-#changelist-filter li a {
-    background: #ffffff !important;
-    color: #555 !important;
-    border: 1px solid #edf2f7 !important;
-    display: block !important;
-    padding: 10px 15px !important;
-    margin: 6px 0 !important;
-    border-radius: 12px !important; /* زوايا أنعم */
-    text-decoration: none !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease-in-out !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-}
-
-/* 4. الألوان الذكية (الحواف السميكة والنص الملون) */
-
-/* Available */
-#changelist-filter li a[href*="available"] {
-    border-left: 5px solid #28a745 !important;
-}
-#changelist-filter li.selected a[href*="available"] {
-    background: #28a745 !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3) !important;
-}
-
-/* Rented */
-#changelist-filter li a[href*="rented"] {
-    border-left: 5px solid #dc3545 !important;
-}
-#changelist-filter li.selected a[href*="rented"] {
-    background: #dc3545 !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
-}
-
-/* Maintenance */
-#changelist-filter li a[href*="maintenance"] {
-    border-left: 5px solid #ffc107 !important;
-}
-#changelist-filter li.selected a[href*="maintenance"] {
-    background: #ffc107 !important;
-    color: #222 !important;
-    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3) !important;
-}
-
-/* Service */
-#changelist-filter li a[href*="service"] {
-    border-left: 5px solid #17a2b8 !important;
-}
-#changelist-filter li.selected a[href*="service"] {
-    background: #17a2b8 !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3) !important;
-}
-/* =========================
-   Additional Vehicle Statuses
-   ========================= */
-
-/* Stolen */
-#changelist-filter li a[href*="status__exact=stolen"] {
-    border-left: 5px solid #000000 !important;
-}
-#changelist-filter li.selected a[href*="status__exact=stolen"] {
-    background: #000000 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.30) !important;
-    border-color: #000000 !important;
-}
-
-/* Out of Service */
-#changelist-filter li a[href*="status__exact=out_of_service"] {
-    border-left: 5px solid #94a3b8 !important;
-}
-#changelist-filter li.selected a[href*="status__exact=out_of_service"] {
-    background: #94a3b8 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(148, 163, 184, 0.30) !important;
-    border-color: #94a3b8 !important;
-}
-
-/* Accident */
-#changelist-filter li a[href*="status__exact=accident"] {
-    border-left: 5px solid #ef4444 !important;
-}
-#changelist-filter li.selected a[href*="status__exact=accident"] {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30) !important;
-    border-color: #ef4444 !important;
-}
-
-/* Sold */
-#changelist-filter li a[href*="status__exact=sold"] {
-    border-left: 5px solid #475569 !important;
-}
-#changelist-filter li.selected a[href*="status__exact=sold"] {
-    background: #475569 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.30) !important;
-    border-color: #475569 !important;
-}
-
-/* لما تكون الحالة الجديدة مفعلة، تتبعها بقية الأقسام بنفس اللون */
-body[class*="status__exact=stolen"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #000000 !important;
-    color: #ffffff !important;
-    border: none !important;
-}
-
-body[class*="status__exact=out_of_service"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #94a3b8 !important;
-    color: #ffffff !important;
-    border: none !important;
-}
-
-body[class*="status__exact=accident"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-    border: none !important;
-}
-
-body[class*="status__exact=sold"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #475569 !important;
-    color: #ffffff !important;
-    border: none !important;
-}
-
-/* 5. زر "All" والمدن عند الاختيار */
-#changelist-filter li.selected a:not([href*="status"]) {
-    background: #1a2a6c !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(26, 42, 108, 0.3) !important;
-}
-
-/* تأثير عند تمرير الماوس فوق أي زر */
-#changelist-filter li a:hover {
-    transform: translateX(5px);
-    background: #f8f9fa !important;
-    border-color: #cbd5e0 !important;
-}
-/* ============================= */
-/* Rental Status Filter Styling  */
-/* ============================= */
-
-/* Active = Orange */
-#changelist-filter li a[href*="rental_status=active"] {
-    border-left: 5px solid #f59e0b !important;
-}
-#changelist-filter li.selected a[href*="rental_status=active"] {
-    background: #f59e0b !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.30) !important;
-    border-color: #f59e0b !important;
-}
-
-/* Completed = Green */
-#changelist-filter li a[href*="rental_status=completed"] {
-    border-left: 5px solid #22c55e !important;
-}
-#changelist-filter li.selected a[href*="rental_status=completed"] {
-    background: #22c55e !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.30) !important;
-    border-color: #22c55e !important;
-}
-
-/* Cancelled = Dark Gray */
-#changelist-filter li a[href*="rental_status=cancelled"] {
-    border-left: 5px solid #334155 !important;
-}
-#changelist-filter li.selected a[href*="rental_status=cancelled"] {
-    background: #334155 !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(51, 65, 85, 0.30) !important;
-    border-color: #334155 !important;
-}
-
-/* Overdue = Red */
-#changelist-filter li a[href*="rental_status=overdue"] {
-    border-left: 5px solid #ef4444 !important;
-}
-#changelist-filter li.selected a[href*="rental_status=overdue"] {
-    background: #ef4444 !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30) !important;
-    border-color: #ef4444 !important;
-}
-
-/* 2. الربط الذكي: جعل بقية الفلاتر (مثل All أو الديون) تتبع لون الحالة النشطة */
-
-/* إذا كان العقد "نشط" -> أي خيار مختار آخر يقلب أورانج */
-body[class*="status__exact=active"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #f59e0b !important;
-    color: white !important;
-    border: none !important;
-}
-
-/* إذا كان العقد "مكتمل" -> أي خيار مختار آخر يقلب أخضر */
-body[class*="status__exact=completed"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #28a745 !important;
-    color: white !important;
-    border: none !important;
-}
-
-/* إذا كان العقد "ملغي" -> أي خيار مختار آخر يقلب أحمر */
-body[class*="status__exact=cancelled"] #changelist-filter li.selected a:not([href*="status__exact"]) {
-    background: #dc3545 !important;
-    color: white !important;
-    border: none !important;
-}
-
-/* 3. تنسيق افتراضي لخيار All والديون في حال لم يتم اختيار حالة عقد بعد */
-#changelist-filter li.selected a[href*="has_balance"], 
-#changelist-filter li.selected a:not([href*="status"]):not([href*="has_balance"]) {
-    background: #1a2a6c !important; /* الكحلي الملكي اللي في كودك الأصلي */
-    color: white !important;
-}
-/* تعطيل الضغط على عناوين التطبيقات الرئيسية (ذات الخلفية الكحلية) لمنع فتح الصفحة الوسيطة */
-#content-main a.section,
-#nav-sidebar a.section,
-caption a.section {
-    pointer-events: none !important;
-    cursor: default !important;
-    text-decoration: none !important;
-}/* --- تحسين شريط الحفظ السفلي في كافة التطبيقات --- */
-
-
-
-
-
-/* 2. تكبير الأزرار بداخل الشريط */
-#content-main .submit-row input[type=submit],
-#content-main .submit-row a,
-#content-main .submit-row button {
-    padding: 12px 24px !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    border-radius: 6px !important;
-    text-transform: uppercase !important;
-    cursor: pointer !important;
-    height: auto !important;
-    border: none !important;
+    letter-spacing: .08em !important;
+    padding: 0 8px 8px !important;
     margin: 0 !important;
 }
 
-/* 3. زر الحفظ الرئيسي (أخضر) */
-#content-main .submit-row input.default {
-    background-color: #22c55e !important;
-    background-image: none !important;
-    color: #ffffff !important;
-}
-#content-main .submit-row input.default:hover {
-    background-color: #16a34a !important;
+#nav-sidebar .section {
+    color: #27b6c1 !important;
 }
 
-/* 4. الأزرار الثانوية (كحلي) */
-#content-main .submit-row input:not(.default) {
-    background-color: #1e293b !important;
-    background-image: none !important;
-    color: #ffffff !important;
-}
-#content-main .submit-row input:not(.default):hover {
-    background-color: #0f172a !important;
-}
-
-/* 5. زر الحذف (أحمر) */
-#content-main .submit-row p.deletelink-box a.deletelink {
-    background-color: #ef4444 !important;
-    background-image: none !important;
-    color: #ffffff !important;
-    display: inline-block !important;
-}
-#content-main .submit-row p.deletelink-box a.deletelink:hover {
-    background-color: #dc2626 !important;
-}
-/* --- تصميم أزرار أعلى الصفحة (ADD / IMPORT) --- */
-
-/* إزالة التدرج الرمادي الافتراضي من Django */
-.object-tools a {
-    background-image: none !important;
-    border-radius: 6px !important;
-    padding: 10px 16px !important;
-    font-weight: 600 !important;
-    border: none !important;
-    color: #ffffff !important;
-}
-
-/* زر ADD (إنشاء عنصر جديد) */
-.object-tools a.addlink {
-    background-color: #22c55e !important; /* أخضر احترافي */
-}
-
-.object-tools a.addlink:hover {
-    background-color: #16a34a !important;
-}
-
-/* زر IMPORT */
-.object-tools a[href*="import"] {
-    background-color: #2563eb !important; /* أزرق */
-}
-
-.object-tools a[href*="import"]:hover {
-    background-color: #1d4ed8 !important;
-}
-
-/* تأثير عند مرور الماوس */
-.object-tools a:hover {
-    background-color: #1d4ed8 !important;
-}
-/* زر EXPORT */
-.object-tools a[href*="export"] {
-    background-color: #64748b !important; /* رمادي احترافي */
-}
-
-.object-tools a[href*="export"]:hover {
-    background-color: #475569 !important;
-}
-/* =========================
-   تحسينات Modern SaaS Dashboard
-   إضافات فقط - لا حذف أي شيء
-========================= */
-
-/* Light / Dark Mode */
-body.dark-mode {
-    background-color: #1e293b !important;
-    color: #f1f5f9 !important;
-}
-
-body.dark-mode #header {
-    background-color: #0f172a !important;
-}
-
-body.dark-mode #nav-sidebar {
-    background-color: #0f172a !important;
-    color: #f1f5f9 !important;
-}
-
-body.dark-mode .module, 
-body.dark-mode .card {
-    background-color: #1f2937 !important;
-    color: #f1f5f9 !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
-}
-
-/* Cards & Modules Hover Effects */
-.module, .card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.module:hover, .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-}
-
-/* Tables Hover Effects */
-table tbody tr {
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-table tbody tr:hover {
-    background-color: #f1f5f9 !important;
-}
-
-/* عند تفعيل Dark Mode من المتصفح */
-@media (prefers-color-scheme: dark) {
-    table tbody tr:hover,
-    table tbody tr:hover td,
-    table tbody tr:hover th {
-        background-color: #1f2937 !important;
-        color: #f9fafb !important;
-    }
-
-    table tbody tr:hover a {
-        color: #93c5fd !important;
-    }
-
-    table tbody tr:hover input,
-    table tbody tr:hover select,
-    table tbody tr:hover textarea {
-        background-color: #111827 !important;
-        color: #f9fafb !important;
-        border-color: #374151 !important;
-    }
-}
-
-/* هذا يبقى فقط إذا كنت تستخدم dark-mode class يدويًا */
-body.dark-mode table tbody tr:hover,
-body.dark-mode table tbody tr:hover td,
-body.dark-mode table tbody tr:hover th {
-    background-color: #374151 !important;
-    color: #f9fafb !important;
-}
-
-body.dark-mode table tbody tr:hover a {
-    color: #93c5fd !important;
-}
-/* Buttons Smooth Transitions */
-.object-tools a, #content-main .submit-row input[type=submit], .btn {
-    transition: all 0.2s ease-in-out !important;
-}
-
-/* Sidebar Responsive (Drawer) */
-@media (max-width: 768px) {
-    #nav-sidebar {
-        position: fixed;
-        left: -250px;
-        top: 0;
-        width: 250px;
-        height: 100%;
-        z-index: 999;
-        transition: left 0.3s ease;
-    }
-
-    body.sidebar-open #nav-sidebar {
-        left: 0;
-    }
-}
-
-/* Animations for numbers update (rental calculation) */
-.field-net_total .readonly,
-.field-rental_days .readonly {
-    transition: all 0.3s ease-in-out;
-}
-
-/* Light / Dark Mode Toggle Button Styles */
-#dark-mode-toggle {
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 6px;
-    background-color: #2563eb;
-    color: white;
-    font-weight: 500;
-    margin-left: 10px;
-    font-size: 12px;
-}
-
-/* =========================================
-   FIX Chrome Dark Mode (بدون كسر الوضع العادي)
-   ========================================= */
-
-/* نقول للمتصفح: أنا أدعم light و dark */
-:root {
-    color-scheme: light dark;
-}
-
-/* نمنع Chrome من العبث بالألوان */
-html,
-body,
-#header,
-#nav-sidebar,
-#content,
-#content-main,
-.module,
-.inline-group,
-div.breadcrumbs,
-input,
-textarea,
-select,
-button,
-table,
-thead,
-tbody,
-tr,
-th,
-td {
-    forced-color-adjust: none;
-}
-/* =========================================
-   Dark mode fixes for changelist filter sidebar
-   ========================================= */
-
-@media (prefers-color-scheme: dark) {
-    /* صندوق الفلاتر كاملًا */
-    #changelist-filter {
-        background-color: #0b0f14 !important;
-        border-left: 1px solid #1f2937 !important;
-        box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    /* عنوان FILTER */
-    #changelist-filter h2 {
-        background: #0f172a !important;
-        color: #f8fafc !important;
-        border-radius: 6px 6px 0 0 !important;
-    }
-
-    /* عناوين المجموعات مثل By Branch / City */
-    #changelist-filter h3 {
-        background: transparent !important;
-        color: #94a3b8 !important;
-    }
-
-    #changelist-filter h3::before {
-        color: #60a5fa !important;
-    }
-
-    /* روابط الفلاتر العادية */
-    #changelist-filter li a {
-        background: #111827 !important;
-        color: #e5e7eb !important;
-        border: 1px solid #374151 !important;
-        box-shadow: none !important;
-    }
-
-    /* مرور الماوس */
-    #changelist-filter li a:hover {
-        background: #1f2937 !important;
-        color: #ffffff !important;
-        border-color: #4b5563 !important;
-        transform: translateX(5px);
-    }
-
-    /* الخيار المختار العام
-   نستثني أيضًا حالات السيارة الجديدة حتى لا تتحول للأزرق */
-#changelist-filter li.selected a:not([href*="available"]):not([href*="rented"]):not([href*="maintenance"]):not([href*="service"]):not([href*="stolen"]):not([href*="out_of_service"]):not([href*="accident"]):not([href*="sold"]):not([href*="rental_status="]) {
-    background: #1e3a8a !important;
-    color: #ffffff !important;
-    border-color: #1e3a8a !important;
-    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.35) !important;
-}
-
-    /* All المختار */
-    #changelist-filter li.selected a[href$="?"],
-    #changelist-filter li.selected a[href*="&"],
-    #changelist-filter li.selected a[href*="all"] {
-        color: #ffffff !important;
-    }
-
-    /* show counts */
-    #changelist-filter details,
-    #changelist-filter summary {
-        color: #cbd5e1 !important;
-        background: transparent !important;
-    }
-
-    /* الخطوط الفاصلة */
-    #changelist-filter hr,
-    #changelist-filter ul,
-    #changelist-filter li {
-        border-color: #1f2937 !important;
-    }
-}
-/* --- جعل صفوف العقود تبدو قابلة للضغط --- */
-#result_list tbody th a {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 34px !important;
-    padding: 6px 12px !important;
-    border-radius: 10px !important;
-    border: 1px solid #cfe0ff !important;
-    background: #f7faff !important;
-    color: #3b82f6 !important;
+#nav-sidebar caption a,
+#nav-sidebar caption a.section,
+#nav-sidebar th a {
+    color: #27b6c1 !important;
     text-decoration: none !important;
+}
+
+#nav-sidebar .module tr {
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+#nav-sidebar .module th[scope="row"] {
+    padding: 0 !important;
+    background: transparent !important;
+    width: auto !important;
+}
+
+#nav-sidebar .module th[scope="row"] a {
+    display: block !important;
+    padding: 12px 12px !important;
+    color: var(--text) !important;
+    font-size: 13px !important;
     font-weight: 700 !important;
-    line-height: 1.2 !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
-    transition: all 0.16s ease-in-out !important;
-}
-
-/* --- المرور بالماوس: لون ألطف وليس ممتلئًا بقوة --- */
-#result_list tbody th a:hover {
-    background: #eef4ff !important;
-    border-color: #bcd3ff !important;
-    color: #2563eb !important;
     text-decoration: none !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.10) !important;
+    background: transparent !important;
+    border: 0 !important;
 }
 
-#result_list tbody th a:focus,
-#result_list tbody th a:active {
-    background: #e8f0ff !important;
-    border-color: #93c5fd !important;
-    color: #1d4ed8 !important;
-    text-decoration: none !important;
-    outline: none !important;
-    box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.20) !important;
+#nav-sidebar .module th[scope="row"] a:hover {
+    background: var(--blue-soft) !important;
+    color: var(--blue) !important;
+    border-radius: 10px !important;
+    transition: all .16s ease !important;
 }
 
-/* --- visited لا يغير الألوان إطلاقًا --- */
-#result_list tbody th a:visited {
-    color: #3b82f6 !important;
-    text-decoration: none !important;
+#nav-sidebar .module td {
+    width: 58px !important;
+    padding: 8px 8px 8px 0 !important;
+    background: transparent !important;
+    border: 0 !important;
 }
 
-/* --- تحسين تموضع الخلية --- */
-#result_list tbody th {
+#nav-sidebar td a.addlink {
+    display: none !important;
+}
+
+/* =========================================
+   Sidebar search box
+   ========================================= */
+#nav-filter,
+#nav-sidebar input,
+#nav-sidebar input[type="text"] {
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--line-strong) !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    padding: 0 12px !important;
+    box-shadow: none !important;
+}
+
+#nav-filter::placeholder,
+#nav-sidebar input::placeholder {
+    color: var(--muted) !important;
+    opacity: 1 !important;
+}
+
+/* =========================================
+   Tables / lists
+   ========================================= */
+#result_list table,
+.change-list table,
+.module table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+#result_list thead th,
+.change-list thead th,
+.module thead th {
+    background: #f7fafc !important;
+    color: var(--muted) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    border-bottom: 1px solid var(--line) !important;
+    padding: 14px 12px !important;
+}
+
+#result_list tbody td,
+#result_list tbody th,
+.change-list tbody td,
+.change-list tbody th {
+    background: #ffffff !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid #eef3f8 !important;
+    padding: 14px 12px !important;
     vertical-align: middle !important;
 }
 
-/* --- إذا كان الصف محددًا أو عليه تركيز من Django Admin --- */
-/* --- نجعل الرابط يبقى واضحًا ولا يتحول لزر مطموس --- */
-#result_list tbody tr.selected th a,
-#result_list tbody tr:focus-within th a {
-    background: #edf4ff !important;
+#result_list tbody tr:hover td,
+#result_list tbody tr:hover th,
+.change-list tbody tr:hover td,
+.change-list tbody tr:hover th {
+    background: #fbfdff !important;
+}
+
+/* =========================================
+   Search toolbar
+   ========================================= */
+#toolbar {
+    margin-bottom: 16px !important;
+    padding: 14px 16px !important;
+    background: rgba(255,255,255,0.86) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+#toolbar input[type="text"] {
+    min-height: 42px !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--line-strong) !important;
+    padding: 0 14px !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+}
+
+#toolbar input[type="text"]::placeholder {
+    color: var(--muted) !important;
+    opacity: 1 !important;
+}
+
+/* =========================================
+   Forms
+   ========================================= */
+.form-row,
+.aligned .form-row {
+    padding: 18px 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+}
+
+.aligned label {
+    color: var(--muted) !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="password"],
+select,
+textarea {
+    min-height: 44px !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--line-strong) !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    padding: 10px 14px !important;
+    box-shadow: none !important;
+}
+
+textarea {
+    min-height: 110px !important;
+}
+
+/* =========================================
+   Inline groups
+   ========================================= */
+.inline-group {
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 20px !important;
+    padding: 16px !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* =========================================
+   Filters rail
+   ========================================= */
+#changelist-filter {
+    background: transparent !important;
+    border-left: 0 !important;
+    box-shadow: none !important;
+    padding: 0 0 0 16px !important;
+}
+
+#changelist-filter h2 {
+    background: transparent !important;
+    color: var(--text) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    border-bottom: 1px solid var(--line) !important;
+    padding: 0 0 12px !important;
+    margin-bottom: 12px !important;
+}
+
+#changelist-filter h3 {
+    background: transparent !important;
+    color: var(--muted) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    padding: 0 !important;
+    margin: 18px 0 10px !important;
+}
+
+#changelist-filter li a {
+    background: rgba(255,255,255,0.86) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--line) !important;
+    display: block !important;
+    padding: 10px 12px !important;
+    margin: 6px 0 !important;
+    border-radius: 12px !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    transition: all .16s ease !important;
+}
+
+#changelist-filter li a:hover {
+    background: #ffffff !important;
     border-color: #bfd7ff !important;
-    color: #2563eb !important;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.08) !important;
+    color: var(--blue) !important;
 }
 
-/* --- Dark mode --- */
-@media (prefers-color-scheme: dark) {
-    #result_list tbody th a {
-        background: #111827 !important;
-        border-color: #334155 !important;
-        color: #93c5fd !important;
-        box-shadow: none !important;
-    }
-
-    #result_list tbody th a:hover {
-        background: #172033 !important;
-        border-color: #475569 !important;
-        color: #bfdbfe !important;
-        box-shadow: 0 4px 10px rgba(147, 197, 253, 0.10) !important;
-    }
-
-    #result_list tbody th a:focus,
-    #result_list tbody th a:active {
-        background: #1e293b !important;
-        border-color: #60a5fa !important;
-        color: #dbeafe !important;
-        outline: none !important;
-        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18) !important;
-    }
-
-    #result_list tbody th a:visited {
-        color: #93c5fd !important;
-    }
-
-    #result_list tbody tr.selected th a,
-    #result_list tbody tr:focus-within th a {
-        background: #1a2332 !important;
-        border-color: #475569 !important;
-        color: #bfdbfe !important;
-        box-shadow: none !important;
-    }
+#changelist-filter li.selected a {
+    background: var(--blue-soft) !important;
+    color: var(--blue) !important;
+    border-color: #bfd7ff !important;
 }
-لماذا هذا يحل المشكلتين
 
-/* --- تمييز الصف عند المرور عليه --- */
-#result_list tbody tr:hover {
-    cursor: pointer;
+/* =========================================
+   Buttons / object tools
+   ========================================= */
+.object-tools {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    width: fit-content !important;
+    margin-left: auto !important;
 }
-/* =========================
-   Rental Payment Summary
-   ========================= */
 
+.object-tools a,
+#content-main td a.addlink,
+#content-main .submit-row input[type=submit],
+#content-main .submit-row a,
+#content-main .submit-row button {
+    min-height: 40px !important;
+    padding: 0 16px !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    border: 1px solid var(--line) !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    text-transform: none !important;
+    letter-spacing: .01em !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all .16s ease !important;
+}
+
+.object-tools a.addlink,
+#content-main td a.addlink,
+#content-main .submit-row input.default {
+    border-bottom: 3px solid var(--green) !important;
+}
+
+.object-tools a[href*="import"] {
+    border-bottom: 3px solid var(--blue) !important;
+}
+
+.object-tools a[href*="export"] {
+    border-bottom: 3px solid var(--slate) !important;
+}
+
+#content-main .submit-row input:not(.default) {
+    border-bottom: 3px solid var(--blue) !important;
+}
+
+#content-main .submit-row p.deletelink-box a.deletelink {
+    border-bottom: 3px solid var(--red) !important;
+    color: #991b1b !important;
+}
+
+.object-tools a:hover,
+#content-main td a.addlink:hover,
+#content-main .submit-row input[type=submit]:hover,
+#content-main .submit-row a:hover,
+#content-main .submit-row button:hover {
+    border-color: #bfd7ff !important;
+    color: var(--blue) !important;
+    background: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+/* =========================================
+   Submit row
+   ========================================= */
+.submit-row {
+    position: sticky !important;
+    bottom: 0;
+    z-index: 20;
+    display: flex !important;
+    gap: 10px !important;
+    align-items: center !important;
+    padding: 14px 16px !important;
+    margin-top: 18px !important;
+    background: rgba(255,255,255,0.94) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* =========================================
+   Messages
+   ========================================= */
+ul.messagelist li {
+    border-radius: 16px !important;
+    border: 1px solid var(--line) !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* =========================================
+   Generic module boxes
+   ========================================= */
+.dashboard #content-main .module,
+.app-index #content-main .module {
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 18px !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* =========================================
+   Rentals — Payment summary box
+   ========================================= */
 .rental-payment-summary {
-    background: #f8fafc;
+    width: 600px;
+    max-width: 100%;
+    padding: 18px 20px;
     border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 16px;
-    margin: 10px 0 18px 0;
-    max-width: 420px;
+    border-radius: 12px;
+    background: #f8fafc;
+    margin: 0 0 20px 0;
 }
 
 .rental-payment-summary__title {
+    font-size: 24px;
     font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 12px;
     color: #0f172a;
+    margin-bottom: 14px;
 }
 
-/* الصف: نضيف محاذاة ومسافة بين الاسم والقيمة */
 .rental-payment-summary__row {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    padding: 12px 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    column-gap: 18px;
     border-bottom: 1px solid #e5e7eb;
+    padding: 10px 0;
     font-size: 18px;
-    gap: 20px;
 }
 
-/* آخر صف يبقى كما هو */
 .rental-payment-summary__row--last {
-    padding: 8px 0 0 0;
-    border-bottom: 0;
+    border-bottom: none;
+    padding: 14px 16px;
+    margin-top: 10px;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    background: #fff1f2;
+    align-items: end;
 }
 
-/* الاسم: يأخذ المساحة المتاحة ويترك فراغًا قبل المبلغ */
 .rental-payment-summary__label {
-    flex: 1 1 auto;
-    min-width: 0;
-    padding-right: 12px;
     font-weight: 600;
-    color: #0f172a;
+    color: #111827;
+    white-space: nowrap;
 }
 
-/* الاسم العريض يبقى عريضًا */
 .rental-payment-summary__label--strong {
     font-weight: 700;
 }
 
-/* القيمة: تبقى على اليمين ولا تلتصق بالاسم */
 .rental-payment-summary__value {
-    flex: 0 0 auto;
+    font-weight: 700;
+    color: #111827;
     white-space: nowrap;
     text-align: right;
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 4px;
+    line-height: 1.2;
+    align-self: end;
+}
+
+.rental-payment-summary__row--nettotal {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #f8fbff;
+}
+
+.rental-payment-summary__label--nettotal {
+    font-size: 19px;
+    font-weight: 800;
+    color: #1d4ed8;
+}
+
+.rental-payment-summary__value--nettotal {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1d4ed8;
+    line-height: 1.1;
+}
+
+.rental-payment-summary__row--last .rental-payment-summary__label--strong {
+    font-size: 22px;
+    font-weight: 900;
+    color: #b91c1c;
+}
+
+.rental-payment-summary__row--last .rental-payment-summary__value--remaining {
+    font-size: 32px;
+    font-weight: 900;
+    color: #dc2626;
+    line-height: 1;
 }
 
 .rental-payment-summary__value--paid {
     color: #16a34a;
-    font-weight: 700;
 }
 
 .rental-payment-summary__value--remaining {
     color: #dc2626;
+}
+
+/* =========================================
+   Rentals — Change form field highlights
+   ========================================= */
+body.app-rentals.model-rental.change-form .form-row.field-net_total {
+    padding: 14px 16px !important;
+    margin-bottom: 10px;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #eff6ff;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-net_total label {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1d4ed8;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-net_total .readonly {
+    font-size: 30px;
+    font-weight: 900;
+    color: #1d4ed8;
+    line-height: 1.1;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-status,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_odometer,
+body.app-rentals.model-rental.change-form .form-row.field-return_odometer,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_date,
+body.app-rentals.model-rental.change-form .form-row.field-expected_return_date,
+body.app-rentals.model-rental.change-form .form-row.field-actual_return_date,
+body.app-rentals.model-rental.change-form .form-row.field-daily_rate,
+body.app-rentals.model-rental.change-form .form-row.field-deposit_amount,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percentage,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percent,
+body.app-rentals.model-rental.change-form .form-row.field-traffic_fines,
+body.app-rentals.model-rental.change-form .form-row.field-damage_fees,
+body.app-rentals.model-rental.change-form .form-row.field-other_charges,
+body.app-rentals.model-rental.change-form .form-row.field-rental_days,
+body.app-rentals.model-rental.change-form .form-row.field-auto_renew,
+body.app-rentals.model-rental.change-form .form-row.field-created_by,
+body.app-rentals.model-rental.change-form .form-row.field-created_at,
+body.app-rentals.model-rental.change-form .form-row.field-start_date,
+body.app-rentals.model-rental.change-form .form-row.field-end_date,
+body.app-rentals.model-rental.change-form .form-row.field-vat_percentage,
+body.app-rentals.model-rental.change-form .form-row.field-customer,
+body.app-rentals.model-rental.change-form .form-row.field-vehicle,
+body.app-rentals.model-rental.change-form .form-row.field-branch {
+    padding: 10px 14px !important;
+    margin-bottom: 8px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #f8fbff;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-status label,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_odometer label,
+body.app-rentals.model-rental.change-form .form-row.field-return_odometer label,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_date label,
+body.app-rentals.model-rental.change-form .form-row.field-expected_return_date label,
+body.app-rentals.model-rental.change-form .form-row.field-actual_return_date label,
+body.app-rentals.model-rental.change-form .form-row.field-daily_rate label,
+body.app-rentals.model-rental.change-form .form-row.field-deposit_amount label,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percentage label,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percent label,
+body.app-rentals.model-rental.change-form .form-row.field-traffic_fines label,
+body.app-rentals.model-rental.change-form .form-row.field-damage_fees label,
+body.app-rentals.model-rental.change-form .form-row.field-other_charges label,
+body.app-rentals.model-rental.change-form .form-row.field-rental_days label,
+body.app-rentals.model-rental.change-form .form-row.field-auto_renew label,
+body.app-rentals.model-rental.change-form .form-row.field-created_by label,
+body.app-rentals.model-rental.change-form .form-row.field-created_at label,
+body.app-rentals.model-rental.change-form .form-row.field-start_date label,
+body.app-rentals.model-rental.change-form .form-row.field-end_date label,
+body.app-rentals.model-rental.change-form .form-row.field-vat_percentage label,
+body.app-rentals.model-rental.change-form .form-row.field-customer label,
+body.app-rentals.model-rental.change-form .form-row.field-vehicle label,
+body.app-rentals.model-rental.change-form .form-row.field-branch label {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1e3a8a;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-status .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_odometer .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-pickup_date .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-expected_return_date .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-actual_return_date .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-daily_rate .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-deposit_amount .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percentage .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percent .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-damage_fees .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-other_charges .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-rental_days .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-created_by .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-created_at .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-start_date .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-end_date .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-vat_percentage .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-customer .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-vehicle .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-branch .readonly {
+    font-size: 19px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-status .readonly {
+    color: #16a34a;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-daily_rate .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-deposit_amount .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percentage .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-tax_percent .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-damage_fees .readonly,
+body.app-rentals.model-rental.change-form .form-row.field-other_charges .readonly {
+    color: #1d4ed8;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-return_odometer input,
+body.app-rentals.model-rental.change-form .form-row.field-traffic_fines input {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 8px 10px;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-traffic_fines input {
+    color: #1d4ed8;
+}
+
+/* Readonly links */
+body.app-rentals.model-rental.change-form .form-row.field-created_by .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-customer .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-vehicle .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-branch .readonly a {
+    color: #2563eb;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-created_by .readonly a:hover,
+body.app-rentals.model-rental.change-form .form-row.field-customer .readonly a:hover,
+body.app-rentals.model-rental.change-form .form-row.field-vehicle .readonly a:hover,
+body.app-rentals.model-rental.change-form .form-row.field-branch .readonly a:hover {
+    text-decoration: underline;
+}
+
+/* Action buttons */
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button,
+body.app-rentals.model-rental.change-form .form-row.field-collect_contract_and_deposit_button,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button {
+    padding: 12px 14px !important;
+    margin-bottom: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button label,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button label,
+body.app-rentals.model-rental.change-form .form-row.field-collect_contract_and_deposit_button label,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button label,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button label {
+    font-size: 16px;
+    font-weight: 800;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-collect_contract_and_deposit_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-collect_contract_and_deposit_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly input[type="submit"],
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly input[type="submit"],
+body.app-rentals.model-rental.change-form .form-row.field-collect_contract_and_deposit_button .readonly input[type="submit"],
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly input[type="submit"],
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly input[type="submit"] {
+    display: inline-block;
+    min-width: 190px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 800;
+    text-decoration: none;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.18);
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-post_rental_button .readonly input[type="submit"] {
+    background: #0f766e;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-collect_traffic_fine_button .readonly input[type="submit"] {
+    background: #d97706;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-return_vehicle_button .readonly input[type="submit"] {
+    background: #dc2626;
+}
+
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly a,
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly button,
+body.app-rentals.model-rental.change-form .form-row.field-print_contract_button .readonly input[type="submit"] {
+    background: #475569;
+}
+
+/* =========================================
+   Rentals — Change list shell
+   ========================================= */
+.rental-shell {
+    display: grid;
+    gap: 18px;
+    padding: 6px 0 10px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.rental-head {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 15 !important;
+    display: grid;
+    gap: 14px;
+    padding: 12px 0 10px;
+    background: linear-gradient(to bottom, rgba(238,243,248,.98), rgba(238,243,248,.9)) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.rental-head__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.rental-head__eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--r-blue);
+}
+
+.rental-head__title {
+    margin: 4px 0 6px;
+    font-size: 2rem;
+    line-height: 1.05;
+    color: var(--text);
+}
+
+.rental-head__subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.rental-tools {
+    display: flex !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.rental-tools li {
+    list-style: none !important;
+}
+
+.rental-command {
+    padding: 10px 14px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid var(--r-line);
+    border-radius: 12px;
+    box-shadow: var(--r-shadow);
+    max-width: 100%;
+}
+
+.rental-command__form {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.rental-command__group {
+    display: grid;
+    gap: 10px;
+}
+
+.rental-command__label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.rental-date-range {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.rental-date-field {
+    display: grid;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.rental-date-field label {
+    color: var(--muted);
+    font-size: 12px;
     font-weight: 700;
 }
 
-@media (prefers-color-scheme: dark) {
-    .rental-payment-summary {
-        background: #111827;
-        border-color: #374151;
-    }
-
-    .rental-payment-summary__title,
-    .rental-payment-summary__label,
-    .rental-payment-summary__value {
-        color: #f9fafb;
-    }
-
-    .rental-payment-summary__row {
-        border-bottom-color: #374151;
-    }
-
-    .rental-payment-summary__value--paid {
-        color: #22c55e;
-    }
-
-    .rental-payment-summary__value--remaining {
-        color: #f87171;
-    }
+.rental-date-field input {
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--r-line);
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
 }
-/* =========================================
-   Django Messages (success / error) - Dark Mode Fix
-   ========================================= */
 
-@media (prefers-color-scheme: dark) {
-    /* الصندوق العام */
-    ul.messagelist li {
-        background: #111827 !important;
-        border: 1px solid #374151 !important;
-        color: #e5e7eb !important;
-        border-radius: 10px;
-    }
-
-    /* رسالة الخطأ */
-    ul.messagelist li.error {
-        background: #2a0f0f !important;
-        border: 1px solid #7f1d1d !important;
-        color: #fca5a5 !important;
-    }
-
-    /* رسالة النجاح */
-    ul.messagelist li.success {
-        background: #052e16 !important;
-        border: 1px solid #166534 !important;
-        color: #86efac !important;
-    }
-
-    /* رسالة التحذير */
-    ul.messagelist li.warning {
-        background: #3b2f05 !important;
-        border: 1px solid #a16207 !important;
-        color: #fde68a !important;
-    }
-
-    /* الروابط داخل الرسائل */
-    ul.messagelist li a {
-        color: #93c5fd !important;
-    }
+.rental-command__actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
 }
-/* =========================================
-   Payment Summary - Wrapper Reset Only
-   ========================================= */
 
-.form-row.field-payment_summary_box,
-.form-row.field-payment_summary_box > div,
-.form-row.field-payment_summary_box .readonly {
+.rental-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none !important;
+    transition: all .16s ease;
+}
+
+.rental-btn--primary {
+    border: 0;
+    background: linear-gradient(135deg, #1f4edd, #3b6bf2);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, .18);
+    cursor: pointer;
+}
+
+.rental-btn--ghost {
+    background: #fff;
+    border: 1px solid var(--line-strong);
+    color: var(--text) !important;
+}
+
+/* =========================================
+   Rentals — Status cards
+   ========================================= */
+.rental-status-cards {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    align-items: stretch !important;
+}
+
+.rental-status-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    min-height: unset !important;
+    padding: 15px !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    border-radius: 18px !important;
+    border: 1px solid var(--r-line) !important;
+    border-bottom-width: 4px !important;
+    box-shadow: var(--r-shadow) !important;
+    color: inherit !important;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease !important;
+}
+
+.rental-status-card:hover {
+    transform: translateY(-2px) !important;
+    border-color: #c9d8ea !important;
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08) !important;
+}
+
+.rental-status-card__count {
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.rental-status-card__label {
+    font-size: 12px;
+    line-height: 1.05;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    margin-top: 5px;
+}
+
+.rental-status-card--all {
+    background: var(--r-blue-soft) !important;
+    border-color: var(--r-blue-border) !important;
+    border-bottom-color: var(--r-blue) !important;
+}
+.rental-status-card--all .rental-status-card__label { color: var(--r-blue) !important; }
+
+.rental-status-card--active {
+    background: var(--r-green-soft) !important;
+    border-color: var(--r-green-border) !important;
+    border-bottom-color: #22c55e !important;
+}
+.rental-status-card--active .rental-status-card__label { color: var(--r-green) !important; }
+
+.rental-status-card--completed {
+    background: var(--r-amber-soft) !important;
+    border-color: var(--r-amber-border) !important;
+    border-bottom-color: #f59e0b !important;
+}
+.rental-status-card--completed .rental-status-card__label { color: var(--r-amber) !important; }
+
+.rental-status-card--cancelled {
+    background: var(--r-slate-soft) !important;
+    border-color: var(--r-slate-border) !important;
+    border-bottom-color: var(--r-slate) !important;
+}
+.rental-status-card--cancelled .rental-status-card__label { color: var(--r-slate) !important; }
+
+.rental-status-card--overdue {
+    background: var(--r-red-soft) !important;
+    border-color: var(--r-red-border) !important;
+    border-bottom-color: #ef4444 !important;
+}
+.rental-status-card--overdue .rental-status-card__label { color: var(--r-red) !important; }
+
+/* =========================================
+   Rentals — Body layout
+   ========================================= */
+.rental-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    gap: 18px;
+    align-items: start;
+}
+
+.rental-main {
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.rental-search #toolbar {
+    margin: 0 !important;
+}
+
+.rental-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.rental-toolbar--bottom {
+    margin-top: 14px;
+}
+
+.rental-results {
+    min-width: 0;
+}
+
+.rental-filters {
+    position: sticky;
+    top: 176px;
+    align-self: start;
+    padding: 0 !important;
     background: transparent !important;
     border: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
     box-shadow: none !important;
 }
+
+.rental-filters__inner {
+    padding: 18px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid var(--r-line);
+    border-radius: var(--r-radius-xl);
+    box-shadow: var(--r-shadow);
+}
+
+.rental-filter-clear a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--r-blue-soft);
+    border: 1px solid var(--r-blue-border);
+    color: var(--r-blue) !important;
+    text-decoration: none !important;
+    font-size: 12px;
+    font-weight: 800;
+}
+
 /* =========================================
-   Soft admin navigation links
+   Rentals — change-list overrides
    ========================================= */
-
-/* -------- LEFT SIDEBAR: model links only -------- */
-#nav-sidebar .module td a {
-    display: block !important;
-    padding: 6px 10px !important;
-    margin: 3px 0 !important;
-    border-radius: 9px !important;
-    background: #f8fbff !important;
-    border: 1px solid #dbeafe !important;
-    color: #2563eb !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    line-height: 1.3 !important;
-    text-decoration: none !important;
-    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05) !important;
-    transition: all 0.15s ease-in-out !important;
+body.app-rentals.model-rental.change-list .rental-body,
+body.app-rentals.model-rental.change-list .rental-main,
+body.app-rentals.model-rental.change-list #changelist-form,
+body.app-rentals.model-rental.change-list .rental-results {
+    overflow: visible !important;
+    max-height: none !important;
 }
 
-#nav-sidebar .module td a:hover {
-    background: #eef6ff !important;
-    border-color: #bfdbfe !important;
-    color: #1d4ed8 !important;
-    text-decoration: none !important;
-    transform: none !important;
-    box-shadow: 0 2px 5px rgba(37, 99, 235, 0.08) !important;
+body.app-rentals.model-rental.change-list .rental-filters,
+body.app-rentals.model-rental.change-list #changelist-filter {
+    position: static !important;
+    top: auto !important;
+    max-height: none !important;
 }
 
-/* العنصر الحالي */
-#nav-sidebar .current-model a,
-#nav-sidebar .module td a[aria-current="page"] {
-    background: #edf4ff !important;
-    border-color: #93c5fd !important;
-    color: #1d4ed8 !important;
-    font-weight: 700 !important;
+body.app-rentals.model-rental.change-list .rental-results thead th {
+    position: static !important;
+    top: auto !important;
 }
 
-/* لا نلمس عناوين الأقسام الداكنة إلا لمسة خفيفة */
-#nav-sidebar .module th,
-#nav-sidebar .module caption,
-#nav-sidebar .module h2 {
-    border-radius: 7px !important;
-    padding: 8px 10px !important;
-    box-shadow: none !important;
+body.app-rentals.model-rental.change-list div.breadcrumbs {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
 }
 
-/* -------- ADMIN HOME PAGE: main model links -------- */
-/* اسم التطبيق نفسه */
-#content-main .app-accounting th a,
-#content-main .app-rentals th a,
-#content-main .app-vehicles th a,
-#content-main .app-customers th a,
-#content-main .app-branches th a,
-#content-main .app-reports th a,
-#content-main .app-auth th a,
-#content-main .app-accounts th a,
-#content-main .app-deposits th a,
-#content-main .app-payments th a,
-#content-main .app-invoices th a,
-#content-main .app-traffic_fines th a,
-#content-main .app-vehicle_usage th a {
-    display: inline-flex !important;
-    align-items: center !important;
-    min-height: 32px !important;
-    padding: 5px 11px !important;
-    border-radius: 9px !important;
-    background: #f8fbff !important;
-    border: 1px solid #dbeafe !important;
-    color: #2563eb !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    line-height: 1.2 !important;
-    text-decoration: none !important;
-    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05) !important;
-    transition: all 0.15s ease-in-out !important;
+body.app-rentals.model-rental.change-list #content-main,
+body.app-rentals.model-rental.change-list .rental-shell {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
-#content-main .app-accounting th a:hover,
-#content-main .app-rentals th a:hover,
-#content-main .app-vehicles th a:hover,
-#content-main .app-customers th a:hover,
-#content-main .app-branches th a:hover,
-#content-main .app-reports th a:hover,
-#content-main .app-auth th a:hover,
-#content-main .app-accounts th a:hover,
-#content-main .app-deposits th a:hover,
-#content-main .app-payments th a:hover,
-#content-main .app-invoices th a:hover,
-#content-main .app-traffic_fines th a:hover,
-#content-main .app-vehicle_usage th a:hover {
-    background: #eef6ff !important;
-    border-color: #bfdbfe !important;
-    color: #1d4ed8 !important;
-    text-decoration: none !important;
+/* =========================================
+   Vehicles — horizontal scroll
+   ========================================= */
+body.app-vehicles.model-vehicle.change-list #changelist-form .results {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* نبقي روابط Add/View الافتراضية هادئة وصغيرة */
-#content-main td a.addlink,
-#content-main td a.viewlink {
-    border-radius: 6px !important;
-    padding: 3px 8px !important;
-    font-size: 11px !important;
+body.app-vehicles.model-vehicle.change-list #changelist-form .results table {
+    min-width: 1350px;
+    width: max-content;
 }
 
-/* -------- Dark mode -------- */
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar {
+    height: 10px;
+}
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+@media (max-width: 1280px) {
+    .rental-status-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .rental-body {
+        grid-template-columns: 1fr;
+    }
+
+    .rental-filters {
+        position: static;
+    }
+}
+
+@media (max-width: 1024px) {
+    #content {
+        padding: 16px 14px 24px !important;
+    }
+
+    #header {
+        padding: 10px 12px !important;
+    }
+
+    .brand-copy small {
+        display: none;
+    }
+
+    body.app-rentals.model-rental.change-list #content-main {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    body.app-rentals.model-rental.change-list .rental-body {
+        display: block;
+        overflow: visible;
+    }
+}
+
+@media (max-width: 860px) {
+    .rental-status-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    .rental-date-range {
+        flex-direction: column;
+    }
+
+    .rental-date-field {
+        min-width: 0;
+    }
+}
+
+/* =========================================
+   Dark mode
+   ========================================= */
 @media (prefers-color-scheme: dark) {
-    #nav-sidebar .module td a {
-        background: #111827 !important;
-        border-color: #334155 !important;
-        color: #93c5fd !important;
+    :root {
+        --app-bg: #0b1220;
+        --surface: #0f172a;
+        --surface-soft: #111b2d;
+        --surface-soft-2: #131e33;
+        --text: #e5eefb;
+        --text-soft: #cbd5e1;
+        --muted: #94a3b8;
+        --muted-2: #7f8ea3;
+        --line: #1e293b;
+        --line-strong: #334155;
+        --shadow-sm: none;
+        --shadow-md: none;
+    }
+
+    #header {
+        background: rgba(11, 18, 32, 0.94) !important;
+    }
+
+    #toolbar,
+    .inline-group,
+    .submit-row,
+    .dashboard #content-main .module,
+    .app-index #content-main .module {
         box-shadow: none !important;
     }
 
-    #nav-sidebar .module td a:hover {
-        background: #162033 !important;
-        border-color: #475569 !important;
-        color: #bfdbfe !important;
-    }
-
-    #nav-sidebar .current-model a,
-    #nav-sidebar .module td a[aria-current="page"] {
-        background: #18263a !important;
-        border-color: #475569 !important;
-        color: #dbeafe !important;
-    }
-
-    #content-main .app-accounting th a,
-    #content-main .app-rentals th a,
-    #content-main .app-vehicles th a,
-    #content-main .app-customers th a,
-    #content-main .app-branches th a,
-    #content-main .app-reports th a,
-    #content-main .app-auth th a,
-    #content-main .app-accounts th a,
-    #content-main .app-deposits th a,
-    #content-main .app-payments th a,
-    #content-main .app-invoices th a,
-    #content-main .app-traffic_fines th a,
-    #content-main .app-vehicle_usage th a {
+    #nav-sidebar .module td a,
+    #toolbar input[type="text"],
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="password"],
+    select,
+    textarea,
+    #changelist-filter li a,
+    .object-tools a,
+    #content-main td a.addlink,
+    #content-main .submit-row input[type=submit],
+    #content-main .submit-row a,
+    #content-main .submit-row button {
         background: #111827 !important;
+        color: var(--text) !important;
         border-color: #334155 !important;
-        color: #93c5fd !important;
-        box-shadow: none !important;
     }
 
-    #content-main .app-accounting th a:hover,
-    #content-main .app-rentals th a:hover,
-    #content-main .app-vehicles th a:hover,
-    #content-main .app-customers th a:hover,
-    #content-main .app-branches th a:hover,
-    #content-main .app-reports th a:hover,
-    #content-main .app-auth th a:hover,
-    #content-main .app-accounts th a:hover,
-    #content-main .app-deposits th a:hover,
-    #content-main .app-payments th a:hover,
-    #content-main .app-invoices th a:hover,
-    #content-main .app-traffic_fines th a:hover,
-    #content-main .app-vehicle_usage th a:hover {
-        background: #162033 !important;
+    #nav-sidebar .module td a:hover,
+    #changelist-filter li a:hover,
+    .object-tools a:hover,
+    #content-main td a.addlink:hover {
+        color: #93c5fd !important;
         border-color: #475569 !important;
-        color: #bfdbfe !important;
+    }
+
+    #result_list table,
+    .change-list table,
+    .module table {
+        box-shadow: none !important;
     }
 }
