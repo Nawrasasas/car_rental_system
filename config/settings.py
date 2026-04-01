@@ -151,3 +151,14 @@ SECURE_HSTS_PRELOAD = False
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 CORS_ALLOW_ALL_ORIGINS = True
+
+# =========================
+# معلومات الشركة للعرض في تطبيق الموبايل (صفحة التواصل العامة)
+# عدّل هذه القيم لتعكس بيانات شركتك الفعلية
+# =========================
+COMPANY_NAME = "شركة تأجير السيارات"
+COMPANY_PHONE = ""
+COMPANY_WHATSAPP = ""
+COMPANY_EMAIL = ""
+COMPANY_DESCRIPTION = "خدمات تأجير السيارات"
+COMPANY_WEBSITE = ""

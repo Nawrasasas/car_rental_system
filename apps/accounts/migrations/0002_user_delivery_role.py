@@ -1,0 +1,24 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+    # --- إضافة دور delivery لموظفي التوصيل الميداني ---
+    dependencies = [
+        ("accounts", "0001_initial"),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name="user",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("admin", "Admin"),
+                    ("accountant", "Accountant"),
+                    ("manager", "Branch Manager"),
+                    ("delivery", "Delivery Staff"),
+                ],
+                max_length=20,
+            ),
+        ),
+    ]

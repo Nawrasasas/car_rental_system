@@ -337,13 +337,41 @@ def _serialize_rental(rental):
 def api_rentals_list_create(request):
     # --- حاشية: GET = قائمة العقود / POST = إنشاء عقد جديد من الموبايل ---
     if request.method == "GET":
-        rentals = (
+        # --- قائمة العقود مع دعم الفلترة والصفحات ---
+        qs = (
             Rental.objects.select_related("customer", "vehicle", "branch")
             .all()
             .order_by("-id")
         )
+
+        # --- فلترة بالحالة ---
+        status_filter = request.GET.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        # --- فلترة بالفرع ---
+        branch_filter = request.GET.get("branch")
+        if branch_filter:
+            qs = qs.filter(branch_id=branch_filter)
+
+        # --- تقسيم الصفحات ---
+        try:
+            page = max(1, int(request.GET.get("page", 1)))
+            page_size = min(50, max(1, int(request.GET.get("page_size", 20))))
+        except (TypeError, ValueError):
+            page, page_size = 1, 20
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        items = list(qs[start: start + page_size])
+
         return Response(
-            {"results": [_serialize_rental(rental) for rental in rentals]},
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "results": [_serialize_rental(r) for r in items],
+            },
             status=status.HTTP_200_OK,
         )
 

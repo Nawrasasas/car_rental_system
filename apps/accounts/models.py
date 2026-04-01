@@ -7,6 +7,8 @@ class User(AbstractUser):
         ('admin', 'Admin'),
         ('accountant', 'Accountant'),
         ('manager', 'Branch Manager'),
+        # --- دور موظفي التوصيل والعمليات الميدانية ---
+        ('delivery', 'Delivery Staff'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)

@@ -171,6 +171,27 @@ class VehicleUsage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated At")
 
+    # --- حقول الموقع الجغرافي: فارغة الآن ومستعدة للتتبع المباشر مستقبلاً ---
+    last_known_lat = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="Last Known Latitude",
+    )
+    last_known_lng = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="Last Known Longitude",
+    )
+    last_location_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Last Location Updated At",
+    )
+
     class Meta:
         verbose_name = "Vehicle Usage"
         verbose_name_plural = "Vehicle Usage"
