@@ -295,8 +295,70 @@ $(document).on(
         });
 
 
+        // ======================================================
+        // ميزة: إخفاء/إظهار حقل السائق الإضافي
+        // ======================================================
+        function toggleAdditionalDriverField() {
+            // --- نتحقق أننا داخل صفحة العقد ---
+            var $checkbox = $('#id_has_additional_driver');
+            if (!$checkbox.length) return;
+
+            var $driverRow = $('.field-additional_driver');
+            if (!$driverRow.length) return;
+
+            if ($checkbox.is(':checked')) {
+                $driverRow.show();
+            } else {
+                $driverRow.hide();
+
+                // --- مسح قيمة السائق الإضافي عند إخفاء الحقل ---
+                // --- نتعامل مع Django autocomplete (select2) ---
+                var $select = $driverRow.find('select');
+                if ($select.length) {
+                    // إذا كان select2 محمّلًا (autocomplete field)
+                    if (typeof $.fn.select2 !== 'undefined'
+                            && $select.hasClass('select2-hidden-accessible')) {
+                        $select.val(null).trigger('change');
+                    } else {
+                        $select.val('');
+                    }
+                }
+                $driverRow.find('input[type="text"]').val('');
+            }
+        }
+
+        // تطبيق عند تحميل الصفحة
+        toggleAdditionalDriverField();
+
+        // مراقبة التغيير على الـ checkbox
+        $(document).on('change', '#id_has_additional_driver', function () {
+            toggleAdditionalDriverField();
+        });
+
+        // ======================================================
+        // ميزة: تلميح بصري لقسم استبدال السيارة
+        // ======================================================
+        function styleReplacementSection() {
+            // --- نضيف border لتمييز قسم الاستبدال بصريًا ---
+            var $replacementFields = [
+                '.field-replacement_vehicle',
+                '.field-replacement_reason',
+                '.field-replacement_notes',
+                '.field-start_replacement_button',
+            ];
+
+            $replacementFields.forEach(function (selector) {
+                var $el = $(selector);
+                if ($el.length && !$el.hasClass('replacement-styled')) {
+                    $el.addClass('replacement-styled');
+                }
+            });
+        }
+
         // تشغيل أولي عند فتح الصفحة
         formatUI();
+        styleReplacementSection();
+        toggleAdditionalDriverField();
 
         if (isRentalFormPage()) {
             calculateNow();

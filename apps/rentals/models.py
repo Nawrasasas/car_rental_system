@@ -186,6 +186,51 @@ class Rental(models.Model):
         verbose_name="Auto Renew",
     )
 
+    # ======================================================
+    # ميزة 1: السائق الإضافي
+    # ======================================================
+    # هل يوجد سائق إضافي مرتبط بهذا العقد؟
+    has_additional_driver = models.BooleanField(
+        default=False,
+        verbose_name="Has Additional Driver",
+    )
+
+    # السائق الإضافي مأخوذ من نفس جدول العملاء
+    # يبقى NULL إذا لم يكن has_additional_driver مفعلًا
+    additional_driver = models.ForeignKey(
+        Customer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='additional_driver_rentals',
+        verbose_name="Additional Driver",
+    )
+
+    # ======================================================
+    # ميزة 2: ملاحظات العقد التشغيلية
+    # ======================================================
+    # حقل نصي حر لأي ملاحظات إدارية أو تشغيلية
+    # لا يؤثر على أي منطق محاسبي أو حالات
+    contract_notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Contract Notes",
+    )
+
+    # ======================================================
+    # ميزة 3: المرجع الخارجي / رقم الحجز أونلاين
+    # ======================================================
+    # db_index=True لتسريع البحث في قائمة العقود
+    # ليس unique لأن: (1) كثير من العقود لن تملكه (null)
+    # (2) نفس رقم المرجع قد يُستخدم لعقود متعددة نادرًا
+    online_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Online Reference",
+    )
+
     # الموظف الذي أنشأ العقد
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -363,6 +408,22 @@ class Rental(models.Model):
             raise ValidationError("This vehicle already has another active rental in the selected period.")
 
     def clean(self):
+        # ======================================================
+        # تحقق السائق الإضافي
+        # ======================================================
+        if self.has_additional_driver:
+            if not self.additional_driver_id:
+                raise ValidationError(
+                    "An additional driver must be selected when 'Has Additional Driver' is enabled."
+                )
+            if self.additional_driver_id == self.customer_id:
+                raise ValidationError(
+                    "The additional driver cannot be the same as the primary customer."
+                )
+        else:
+            # إذا لم يكن has_additional_driver مفعلًا نتأكد من مسح السائق الإضافي
+            self.additional_driver_id = None
+
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError(
                 "Expected return date cannot be earlier than pickup date."
@@ -434,6 +495,9 @@ class Rental(models.Model):
                 "auto_renew",
                 "pickup_odometer",
                 "return_odometer",
+                # حقول جديدة — مطلوبة لفحص locked_fields
+                "has_additional_driver",
+                "additional_driver_id",
             )
             .first()
         )
@@ -479,6 +543,9 @@ class Rental(models.Model):
                 "auto_renew": "auto renew",
                 "pickup_odometer": "pickup odometer",
                 "return_odometer": "return odometer",
+                # حقل السائق الإضافي يُقفل بعد إغلاق العقد
+                "has_additional_driver": "has additional driver",
+                "additional_driver_id": "additional driver",
             }
 
             changed_fields = []
@@ -509,6 +576,9 @@ class Rental(models.Model):
                     "auto_renew",
                     "pickup_odometer",
                     "return_odometer",
+                    # حقول جديدة
+                    "has_additional_driver",
+                    "additional_driver_id",
                 )
                 .first()
             )
@@ -614,6 +684,20 @@ class Rental(models.Model):
             locked_vehicle = Vehicle.objects.select_for_update().get(
                 pk=locked_rental.vehicle_id
             )
+
+            # ======================================================
+            # منع إغلاق العقد إذا يوجد استبدال نشط غير منتهٍ
+            # المنطق: السيارة البديلة ما زالت مع الزبون
+            # يجب إنهاء الاستبدال أولًا قبل الإغلاق
+            # ======================================================
+            has_active_replacement = locked_rental.replacements.filter(
+                status='active'
+            ).exists()
+            if has_active_replacement:
+                raise ValidationError(
+                    "Cannot return the vehicle while a vehicle replacement is active. "
+                    "Please end the vehicle replacement first."
+                )
 
             # منع الإرجاع إذا العقد مكتمل مسبقًا
             if locked_rental.status == "completed":
@@ -846,3 +930,257 @@ class RentalLog(models.Model):
     def __str__(self):
         # تمثيل نصي واضح للسجل
         return f"{self.action} - Rental #{self.rental_id}"
+
+
+# ==============================================================================
+# ميزة 4: موديل استبدال السيارة
+# ==============================================================================
+# قرار معماري: موديل مستقل وليس حقولاً على Rental لأن:
+# 1) الاستبدال له دورة حياة خاصة (started_at, ended_at, status)
+# 2) يمكن أن يتكرر في نفس العقد أكثر من مرة
+# 3) يحتاج لتتبع السيارة الأصلية والبديلة بشكل منفصل
+# 4) منطق تغيير حالة السيارات داخل الموديل نفسه مع transaction.atomic
+# ==============================================================================
+class VehicleReplacement(models.Model):
+
+    STATUS_CHOICES = (
+        ('active', 'Active'),      # الاستبدال جارٍ — البديلة مع الزبون
+        ('completed', 'Completed'), # انتهى الاستبدال — الأصلية عادت للزبون
+    )
+
+    # العقد المرتبط بهذا الاستبدال
+    rental = models.ForeignKey(
+        Rental,
+        on_delete=models.CASCADE,
+        related_name='replacements',
+        verbose_name="Rental",
+    )
+
+    # السيارة الأصلية للعقد (الموجودة في rental.vehicle)
+    original_vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.PROTECT,
+        related_name='original_in_replacements',
+        verbose_name="Original Vehicle",
+    )
+
+    # السيارة البديلة المختارة من المتاحة
+    replacement_vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.PROTECT,
+        related_name='used_as_replacement',
+        verbose_name="Replacement Vehicle",
+    )
+
+    # تاريخ/وقت بدء الاستبدال
+    started_at = models.DateTimeField(
+        verbose_name="Replacement Started At",
+    )
+
+    # تاريخ/وقت إنهاء الاستبدال (فارغ حتى الإنهاء)
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Replacement Ended At",
+    )
+
+    # سبب الاستبدال — إلزامي
+    reason = models.TextField(
+        verbose_name="Reason for Replacement",
+    )
+
+    # ملاحظات اختيارية
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Notes",
+    )
+
+    # حالة الاستبدال
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        verbose_name="Status",
+    )
+
+    # الموظف الذي بدأ الاستبدال
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='started_replacements',
+        verbose_name="Started By",
+    )
+
+    # الموظف الذي أنهى الاستبدال
+    ended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ended_replacements',
+        verbose_name="Ended By",
+    )
+
+    # تاريخ إنشاء السجل
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Created At",
+    )
+
+    class Meta:
+        verbose_name = "Vehicle Replacement"
+        verbose_name_plural = "Vehicle Replacements"
+        ordering = ['-created_at']
+
+    @classmethod
+    def start_replacement(cls, *, rental, replacement_vehicle, reason, notes='', user=None):
+        """
+        بدء استبدال السيارة بشكل آمن داخل معاملة واحدة.
+
+        المنطق:
+        - السيارة الأصلية: rented → available (ذهبت للإصلاح)
+        - السيارة البديلة: available → rented (أُعطيت للزبون)
+        """
+        if not reason or not reason.strip():
+            raise ValidationError("Replacement reason is required.")
+
+        with transaction.atomic():
+            # قفل سجل العقد لمنع التعارض المتزامن
+            locked_rental = Rental.objects.select_for_update().get(pk=rental.pk)
+
+            if locked_rental.status != 'active':
+                raise ValidationError(
+                    "Vehicle replacement can only be started on active rentals."
+                )
+
+            # منع وجود أكثر من استبدال نشط في نفس الوقت
+            if cls.objects.filter(rental=locked_rental, status='active').exists():
+                raise ValidationError(
+                    "There is already an active vehicle replacement for this rental. "
+                    "Please end it before starting a new one."
+                )
+
+            # قفل السيارة الأصلية
+            locked_original = Vehicle.objects.select_for_update().get(
+                pk=locked_rental.vehicle_id
+            )
+
+            # قفل السيارة البديلة
+            locked_replacement = Vehicle.objects.select_for_update().get(
+                pk=replacement_vehicle.pk
+            )
+
+            # لا يجوز استبدال السيارة بنفسها
+            if locked_replacement.pk == locked_original.pk:
+                raise ValidationError(
+                    "The replacement vehicle must be different from the original vehicle."
+                )
+
+            # التحقق من توفر السيارة البديلة لحظيًا
+            if locked_replacement.status != 'available':
+                raise ValidationError(
+                    f"The selected replacement vehicle is not available "
+                    f"(current status: {locked_replacement.get_status_display()})."
+                )
+
+            # إنشاء سجل الاستبدال
+            replacement = cls.objects.create(
+                rental=locked_rental,
+                original_vehicle=locked_original,
+                replacement_vehicle=locked_replacement,
+                started_at=timezone.now(),
+                reason=reason.strip(),
+                notes=(notes or '').strip(),
+                status='active',
+                started_by=user,
+            )
+
+            # تحديث حالة السيارة الأصلية: rented → available
+            locked_original.status = 'available'
+            locked_original.save(update_fields=['status'])
+
+            # تحديث حالة السيارة البديلة: available → rented
+            locked_replacement.status = 'rented'
+            locked_replacement.save(update_fields=['status'])
+
+            # تسجيل العملية في سجل العقد
+            RentalLog.objects.create(
+                rental=locked_rental,
+                action="Vehicle Replacement Started",
+                details=(
+                    f"Original vehicle '{locked_original.plate_number}' temporarily replaced with "
+                    f"'{locked_replacement.plate_number}'. "
+                    f"Reason: {reason.strip()}."
+                ),
+                user=user,
+            )
+
+        return replacement
+
+    def end_replacement(self, *, notes='', user=None):
+        """
+        إنهاء الاستبدال وإعادة السيارة الأصلية للزبون.
+
+        المنطق:
+        - السيارة البديلة: rented → available (أُعيدت من الزبون)
+        - السيارة الأصلية: available → rented (أُعيدت للزبون)
+        """
+        with transaction.atomic():
+            # قفل سجل الاستبدال لمنع التعارض
+            locked_self = VehicleReplacement.objects.select_for_update().get(pk=self.pk)
+
+            if locked_self.status == 'completed':
+                raise ValidationError("This vehicle replacement is already completed.")
+
+            # قفل كلتا السيارتين
+            locked_original = Vehicle.objects.select_for_update().get(
+                pk=locked_self.original_vehicle_id
+            )
+            locked_replacement = Vehicle.objects.select_for_update().get(
+                pk=locked_self.replacement_vehicle_id
+            )
+
+            # تحديث سجل الاستبدال بدون استدعاء save() الكامل
+            now = timezone.now()
+            final_notes = notes.strip() if notes else (locked_self.notes or '')
+
+            VehicleReplacement.objects.filter(pk=locked_self.pk).update(
+                status='completed',
+                ended_at=now,
+                ended_by=user,
+                notes=final_notes,
+            )
+
+            # السيارة البديلة: rented → available (أُعيدت من الزبون)
+            locked_replacement.status = 'available'
+            locked_replacement.save(update_fields=['status'])
+
+            # السيارة الأصلية: available → rented (عادت للزبون)
+            locked_original.status = 'rented'
+            locked_original.save(update_fields=['status'])
+
+            # تسجيل في سجل العقد
+            RentalLog.objects.create(
+                rental=locked_self.rental,
+                action="Vehicle Replacement Ended",
+                details=(
+                    f"Replacement ended. Vehicle '{locked_replacement.plate_number}' returned from customer. "
+                    f"Original vehicle '{locked_original.plate_number}' restored to customer."
+                ),
+                user=user,
+            )
+
+            # تحديث نسخة الذاكرة بعد نجاح العملية
+            self.status = 'completed'
+            self.ended_at = now
+            self.ended_by = user
+            self.notes = final_notes
+
+    def __str__(self):
+        return (
+            f"Replacement #{self.pk} — Rental #{self.rental_id} "
+            f"({self.replacement_vehicle.plate_number} | {self.get_status_display()})"
+        )

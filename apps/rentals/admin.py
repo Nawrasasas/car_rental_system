@@ -11,7 +11,7 @@ from django.utils.safestring import mark_safe
 from django.apps import apps
 from apps.vehicles.models import Vehicle
 from import_export.admin import ExportActionModelAdmin
-from .models import Rental, RentalLog
+from .models import Rental, RentalLog, VehicleReplacement
 from apps.attachments.inlines import AttachmentInline
 from apps.payments.models import Payment
 from django import forms
@@ -32,6 +32,38 @@ class RentalLogInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         # منع إضافة سجل يدويًا من الإدارة
+        return False
+
+
+class VehicleReplacementInline(admin.TabularInline):
+    """
+    عرض سجل استبدال السيارات داخل صفحة العقد (قراءة فقط).
+    الإضافة والتعديل يتمان عبر أزرار الاستبدال المخصصة فقط.
+    """
+    model = VehicleReplacement
+    extra = 0
+    can_delete = False
+    fields = (
+        'original_vehicle',
+        'replacement_vehicle',
+        'started_at',
+        'ended_at',
+        'reason',
+        'status',
+        'started_by',
+        'ended_by',
+    )
+    readonly_fields = fields
+    verbose_name = "Vehicle Replacement Record"
+    verbose_name_plural = "Vehicle Replacement History"
+    show_change_link = False
+
+    def has_add_permission(self, request, obj=None):
+        # الإضافة تتم فقط عبر زر Start Replacement
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # التعديل ممنوع يدويًا
         return False
 
 
@@ -128,6 +160,38 @@ class RentalAdminForm(forms.ModelForm):
         label="Initial Payment Notes",
     )
 
+    # ======================================================
+    # حقول بدء الاستبدال (غير مربوطة بالموديل مباشرةً)
+    # تُقرأ فقط في response_change عند الضغط على Start Replacement
+    # ======================================================
+    replacement_vehicle = forms.ModelChoiceField(
+        required=False,
+        queryset=Vehicle.objects.none(),  # يُملأ في __init__ ديناميكيًا
+        label="Replacement Vehicle",
+        help_text="Only available vehicles are shown.",
+        empty_label="--- Select Available Vehicle ---",
+    )
+
+    replacement_reason = forms.CharField(
+        required=False,
+        max_length=500,
+        label="Replacement Reason",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Mechanical failure, Accident repair..."}),
+    )
+
+    replacement_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Optional notes..."}),
+        label="Replacement Notes (Optional)",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # تحديث قائمة السيارات المتاحة ديناميكيًا عند كل فتح للفورم
+        self.fields['replacement_vehicle'].queryset = (
+            Vehicle.objects.filter(status='available').order_by('plate_number')
+        )
+
     class Meta:
         model = Rental
         fields = "__all__"
@@ -135,7 +199,28 @@ class RentalAdminForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        # ======================================================
+        # تحقق السائق الإضافي على مستوى الفورم
+        # ======================================================
+        has_additional_driver = cleaned_data.get('has_additional_driver')
+        additional_driver = cleaned_data.get('additional_driver')
         customer = cleaned_data.get("customer")
+
+        if has_additional_driver:
+            if not additional_driver:
+                self.add_error(
+                    'additional_driver',
+                    "Please select an additional driver."
+                )
+            elif customer and additional_driver.pk == customer.pk:
+                self.add_error(
+                    'additional_driver',
+                    "The additional driver cannot be the same as the primary customer."
+                )
+        else:
+            # إذا لم يكن has_additional_driver مفعلًا نمسح القيمة
+            cleaned_data['additional_driver'] = None
+
         start_date = cleaned_data.get("start_date")
         end_date = cleaned_data.get("end_date")
         pickup_odometer = cleaned_data.get("pickup_odometer")
@@ -281,7 +366,8 @@ class PaymentInlineFormSet(BaseInlineFormSet):
 @admin.register(Rental, site=custom_admin_site)
 class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     form = RentalAdminForm
-    autocomplete_fields = ('vehicle',)
+    # additional_driver يستخدم autocomplete لأن CustomerAdmin يملك search_fields
+    autocomplete_fields = ('vehicle', 'additional_driver')
 
     # قالب مخصص لإظهار بطاقات حالات العقود أعلى صفحة القائمة
     change_list_template = "admin/rentals/rental/change_list.html"
@@ -510,6 +596,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "return_time",
         "grand_total",
         "balance_due",
+        "online_reference_display",  # المرجع الخارجي — مفيد للبحث السريع بالعين
         "branch",
         "status_label",
         "print_contract_button",
@@ -531,12 +618,13 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "customer__phone",
         "customer__company_name",
         "vehicle__plate_number",
+        "online_reference",  # البحث بالمرجع الخارجي / رقم الحجز
     )
 
     # ترتيب افتراضي
     ordering = ('-id',)
 
-    # الحقول المقروءة فقط
+    # الحقول المقروءة فقط — تشمل أزرار العمليات والحقول المحسوبة
     readonly_fields = (
         "rental_days",
         "net_total",
@@ -548,10 +636,12 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "collect_traffic_fine_button",
         "return_vehicle_button",
         "print_contract_button",
+        "start_replacement_button",   # زر بدء استبدال السيارة
+        "end_replacement_button",     # زر إنهاء الاستبدال النشط
     )
 
-    # العناصر الداخلية
-    inlines = [AttachmentInline ]
+    # العناصر الداخلية — سجل الاستبدال يُضاف هنا كـ inline للقراءة فقط
+    inlines = [AttachmentInline, VehicleReplacementInline]
 
     # عدد العناصر في الصفحة
     list_per_page = 25
@@ -641,6 +731,9 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             "customer",
             "vehicle",
             "branch",
+            # --- السائق الإضافي ---
+            "has_additional_driver",
+            "additional_driver",
             "pickup_odometer",
             "return_odometer",
             "start_date",
@@ -654,13 +747,33 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             "other_charges",
             "rental_days",
             "net_total",
+            # --- حقول جديدة ---
+            "online_reference",
+            "contract_notes",
             "auto_renew",
             "created_by",
             "created_at",
         ]
 
         if obj:
+            # نضيف status فقط عند تعديل عقد موجود
             fields.insert(8, "status")
+
+            # --- قسم استبدال السيارة يظهر فقط على العقود النشطة ---
+            if obj.status == 'active':
+                active_replacement = obj.replacements.filter(status='active').first()
+
+                if active_replacement:
+                    # يوجد استبدال نشط حاليًا: أظهر زر الإنهاء فقط
+                    fields.append("end_replacement_button")
+                else:
+                    # لا يوجد استبدال نشط: أظهر نموذج بدء استبدال جديد
+                    fields.extend([
+                        "start_replacement_button",
+                        "replacement_vehicle",
+                        "replacement_reason",
+                        "replacement_notes",
+                    ])
 
         return fields
 
@@ -696,6 +809,9 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
             if obj.status in ('completed', 'cancelled'):
                 readonly.append('return_odometer')
+                # --- قفل السائق الإضافي بعد إغلاق العقد ---
+                # (contract_notes و online_reference تبقى قابلة للتعديل دائمًا)
+                readonly.extend(['has_additional_driver', 'additional_driver'])
 
         return tuple(dict.fromkeys(readonly))
 
@@ -1222,6 +1338,82 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                 )
             return HttpResponseRedirect(request.path)
 
+        # ======================================================
+        # معالج بدء استبدال السيارة
+        # ======================================================
+        if "_start_replacement" in request.POST:
+            replacement_vehicle_id = request.POST.get("replacement_vehicle")
+            reason = request.POST.get("replacement_reason", "").strip()
+            notes = request.POST.get("replacement_notes", "").strip()
+
+            if not replacement_vehicle_id:
+                self.message_user(
+                    request,
+                    "Please select a replacement vehicle.",
+                    level=messages.ERROR,
+                )
+                return HttpResponseRedirect(request.path)
+
+            if not reason:
+                self.message_user(
+                    request,
+                    "Replacement reason is required.",
+                    level=messages.ERROR,
+                )
+                return HttpResponseRedirect(request.path)
+
+            try:
+                obj.refresh_from_db()
+                replacement_vehicle = Vehicle.objects.get(pk=replacement_vehicle_id)
+
+                VehicleReplacement.start_replacement(
+                    rental=obj,
+                    replacement_vehicle=replacement_vehicle,
+                    reason=reason,
+                    notes=notes,
+                    user=request.user,
+                )
+                self.message_user(
+                    request,
+                    "Vehicle replacement started successfully.",
+                    level=messages.SUCCESS,
+                )
+            except Vehicle.DoesNotExist:
+                self.message_user(request, "Selected vehicle was not found.", level=messages.ERROR)
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(request, f"Error starting replacement: {str(e)}", level=messages.ERROR)
+
+            return HttpResponseRedirect(request.path)
+
+        # ======================================================
+        # معالج إنهاء استبدال السيارة
+        # ======================================================
+        if "_end_replacement" in request.POST:
+            replacement_pk = request.POST.get("_end_replacement")
+            end_notes = request.POST.get("replacement_notes", "").strip()
+
+            try:
+                obj.refresh_from_db()
+                self._end_replacement_from_admin(
+                    rental=obj,
+                    replacement_pk=replacement_pk,
+                    notes=end_notes,
+                    user=request.user,
+                )
+                self.message_user(
+                    request,
+                    "Vehicle replacement ended. Original vehicle restored to customer.",
+                    level=messages.SUCCESS,
+                )
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(request, f"Error ending replacement: {str(e)}", level=messages.ERROR)
+
+            return HttpResponseRedirect(request.path)
+
         if "_return_vehicle" in request.POST:
             try:
                 obj.refresh_from_db()
@@ -1388,6 +1580,18 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
     status_label.short_description = "STATUS"
 
+    def online_reference_display(self, obj):
+        """عرض المرجع الخارجي في قائمة العقود — يبقى فارغًا إذا لم يُدخل"""
+        if obj.online_reference:
+            return format_html(
+                '<span style="font-family:monospace; font-size:11px; '
+                'background:#f1f5f9; padding:2px 6px; border-radius:4px;">{}</span>',
+                obj.online_reference
+            )
+        return format_html('<span style="color:#d1d5db;">—</span>')
+
+    online_reference_display.short_description = "REF #"
+
     def print_contract_button(self, obj):
         # --- حاشية: زر طباعة العقد ---
         if not obj or not obj.pk:
@@ -1418,6 +1622,15 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         if obj.actual_return_date:
             return "Vehicle already returned."
 
+        # تحذير إذا كان هناك استبدال نشط
+        has_active = obj.replacements.filter(status='active').exists()
+        if has_active:
+            return mark_safe(
+                '<span style="color:#dc2626; font-weight:bold;">'
+                '⚠ Cannot return: Active vehicle replacement in progress. End it first.'
+                '</span>'
+            )
+
         return mark_safe(
             '<button type="submit" name="_return_vehicle" value="1" '
             'style="background:#16a34a; color:white; padding:10px 16px; '
@@ -1427,6 +1640,95 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         )
 
     return_vehicle_button.short_description = "Return Vehicle"
+
+    # ======================================================
+    # زر بدء استبدال السيارة
+    # ======================================================
+    def start_replacement_button(self, obj):
+        """
+        يظهر فقط عندما يكون العقد نشطًا ولا يوجد استبدال نشط.
+        يُصاحبه حقول replacement_vehicle / replacement_reason / replacement_notes.
+        """
+        if not obj or not obj.pk or obj.status != 'active':
+            return ""
+
+        return mark_safe(
+            '<div style="margin-bottom:6px; font-size:12px; color:#7c3aed; font-weight:bold;">'
+            '⬇ Fill in the fields below then click the button to start a vehicle replacement'
+            '</div>'
+            '<button type="submit" name="_start_replacement" value="1" '
+            'style="background:#7c3aed; color:white; padding:10px 16px; '
+            'border:none; border-radius:6px; font-weight:bold; cursor:pointer;">'
+            'Start Vehicle Replacement'
+            '</button>'
+        )
+
+    start_replacement_button.short_description = "Start Replacement"
+
+    # ======================================================
+    # زر إنهاء الاستبدال النشط
+    # ======================================================
+    def end_replacement_button(self, obj):
+        """
+        يظهر فقط عندما يوجد استبدال نشط.
+        يعرض معلومات السيارة البديلة الحالية.
+        """
+        if not obj or not obj.pk:
+            return ""
+
+        active_replacement = obj.replacements.filter(status='active').first()
+        if not active_replacement:
+            return "No active replacement."
+
+        rv = active_replacement.replacement_vehicle
+        ov = active_replacement.original_vehicle
+
+        return mark_safe(
+            f'<div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; '
+            f'padding:12px 14px; margin-bottom:10px;">'
+            f'<div style="font-weight:bold; color:#92400e; margin-bottom:6px;">🔄 Active Replacement</div>'
+            f'<div style="font-size:13px; color:#78350f;">'
+            f'Original: <strong>{ov.plate_number}</strong> | '
+            f'Replacement: <strong>{rv.plate_number} ({rv.brand} {rv.model})</strong><br>'
+            f'Started: {active_replacement.started_at.strftime("%Y-%m-%d %H:%M")}'
+            f'</div>'
+            f'</div>'
+            f'<button type="submit" name="_end_replacement" value="{active_replacement.pk}" '
+            f'style="background:#7c3aed; color:white; padding:10px 16px; '
+            f'border:none; border-radius:6px; font-weight:bold; cursor:pointer;">'
+            f'End Vehicle Replacement (Return Original)'
+            f'</button>'
+        )
+
+    end_replacement_button.short_description = "End Active Replacement"
+
+    # ======================================================
+    # دالة خدمية: بدء الاستبدال من صفحة الإدارة
+    # ======================================================
+    def _start_replacement_from_admin(self, *, rental, replacement_vehicle_id, reason, notes=''):
+        try:
+            replacement_vehicle = Vehicle.objects.get(pk=replacement_vehicle_id)
+        except Vehicle.DoesNotExist:
+            raise ValidationError("Selected replacement vehicle was not found.")
+
+        VehicleReplacement.start_replacement(
+            rental=rental,
+            replacement_vehicle=replacement_vehicle,
+            reason=reason,
+            notes=notes,
+            user=None,  # يُمرر من response_change
+        )
+
+    # ======================================================
+    # دالة خدمية: إنهاء الاستبدال من صفحة الإدارة
+    # ======================================================
+    def _end_replacement_from_admin(self, *, rental, replacement_pk, notes='', user=None):
+        try:
+            replacement = VehicleReplacement.objects.get(pk=replacement_pk, rental=rental)
+        except VehicleReplacement.DoesNotExist:
+            raise ValidationError("Vehicle replacement record not found for this rental.")
+
+        replacement.end_replacement(notes=notes, user=user)
 
     # 1. أضف اسم الإجراء إلى قائمة الأكشنز (إذا كان لديك القائمة مسبقاً أضفه إليها)
     actions = ["post_selected_rentals"]
@@ -1470,6 +1772,18 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             extra_context["summary_net_total"] = obj.net_total or 0
             extra_context["summary_total_paid"] = amounts["total"]
             extra_context["summary_remaining_balance"] = remaining_balance
+
+            # --- تمرير سياق الاستبدال للقالب ---
+            extra_context["active_replacement"] = (
+                obj.replacements.filter(status='active')
+                .select_related('original_vehicle', 'replacement_vehicle')
+                .first()
+            )
+            extra_context["replacement_history"] = (
+                obj.replacements
+                .select_related('original_vehicle', 'replacement_vehicle', 'started_by', 'ended_by')
+                .order_by('-created_at')
+            )
 
         return super().change_view(
             request, object_id, form_url, extra_context=extra_context

@@ -566,7 +566,7 @@
             </div>
         </div>
 
-        <!-- --- حاشية: معلومات الزبون --- -->
+        <!-- --- حاشية: معلومات الزبون والسائق الإضافي --- -->
         <div class="section">
             <h3 class="section-title">1. Customer Information</h3>
 
@@ -595,6 +595,21 @@
                     <th>Customer Notes</th>
                     <td>{{ rental.customer.notes|default:"-" }}</td>
                 </tr>
+                {% if rental.has_additional_driver and rental.additional_driver %}
+                <!-- --- السائق الإضافي: يظهر فقط إذا كان مُفعلًا --- -->
+                <tr style="background:#eff6ff;">
+                    <th>Additional Driver</th>
+                    <td><strong>{{ rental.additional_driver.full_name|default:"-" }}</strong></td>
+                    <th>Driver Phone</th>
+                    <td>{{ rental.additional_driver.phone|default:"-" }}</td>
+                </tr>
+                <tr style="background:#eff6ff;">
+                    <th>Driver License</th>
+                    <td>{{ rental.additional_driver.license_number|default:"-" }}</td>
+                    <th>Driver Nationality</th>
+                    <td>{{ rental.additional_driver.nationality|default:"-" }}</td>
+                </tr>
+                {% endif %}
             </table>
         </div>
 
@@ -635,6 +650,17 @@
                     <td>{{ rental.rental_days|default:"0" }} Day(s)</td>
                     <th>Vehicle Status</th>
                     <td>{{ rental.vehicle.status|default:"-" }}</td>
+                </tr>
+                <!-- --- المرجع الخارجي: يظهر دائمًا (قيمة أو شرطة) --- -->
+                <tr>
+                    <th>Online Reference</th>
+                    <td colspan="3">
+                        {% if rental.online_reference %}
+                            <span style="font-family:monospace; font-weight:bold;">{{ rental.online_reference }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                 </tr>
             </table>
         </div>
@@ -698,6 +724,68 @@
                 </div>
             </div>
         </div>
+
+        <!-- ============================================================ -->
+        <!-- ميزة: ملاحظات العقد التشغيلية                              -->
+        <!-- القرار: تظهر في الطباعة لأنها ملاحظات تشغيلية للعقد       -->
+        <!-- (مثل شروط التسليم والاستلام أو تفاصيل الاتفاق)            -->
+        <!-- ============================================================ -->
+        {% if rental.contract_notes %}
+        <div class="section">
+            <h3 class="section-title">4. Contract Notes</h3>
+            <div style="border:1px solid var(--gray-200); border-radius:10px; padding:14px 16px; background:var(--white); font-size:13px; color:var(--gray-900); line-height:1.6; white-space:pre-wrap;">{{ rental.contract_notes }}</div>
+        </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- ميزة: سجل استبدال السيارات                                  -->
+        <!-- يظهر فقط إذا مرّ العقد بعملية استبدال واحدة على الأقل      -->
+        <!-- ============================================================ -->
+        {% with replacements=rental.replacements.all %}
+        {% if replacements %}
+        <div class="section">
+            <h3 class="section-title">5. Vehicle Replacement History</h3>
+            <table class="info-table" style="table-layout:auto;">
+                <thead>
+                    <tr>
+                        <th style="width:auto;">#</th>
+                        <th style="width:auto;">Original Vehicle</th>
+                        <th style="width:auto;">Replacement Vehicle</th>
+                        <th style="width:auto;">Started At</th>
+                        <th style="width:auto;">Ended At</th>
+                        <th style="width:auto;">Status</th>
+                        <th style="width:auto;">Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rep in replacements %}
+                    <tr {% if rep.status == 'active' %}style="background:#fef3c7;"{% endif %}>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ rep.original_vehicle.plate_number|default:"-" }}</strong><br>
+                            <small>{{ rep.original_vehicle.brand|default:"" }} {{ rep.original_vehicle.model|default:"" }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ rep.replacement_vehicle.plate_number|default:"-" }}</strong><br>
+                            <small>{{ rep.replacement_vehicle.brand|default:"" }} {{ rep.replacement_vehicle.model|default:"" }}</small>
+                        </td>
+                        <td>{{ rep.started_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td>{{ rep.ended_at|date:"Y-m-d H:i"|default:"Active" }}</td>
+                        <td>
+                            {% if rep.status == 'active' %}
+                                <span style="color:#d97706; font-weight:bold;">Active</span>
+                            {% else %}
+                                <span style="color:#059669; font-weight:bold;">Completed</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:12px;">{{ rep.reason|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% endwith %}
 
         <!-- --- حاشية: ملاحظات وشروط مختصرة --- -->
         <div class="two-col-notes">
