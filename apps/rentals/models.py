@@ -663,8 +663,20 @@ class Rental(models.Model):
         if locked_vehicle:
             if self.status == "active":
                 if locked_vehicle.status != "rented":
-                    locked_vehicle.status = "rented"
-                    locked_vehicle.save(update_fields=["status"])
+                    # ======================================================
+                    # BUG FIX: لا نجبر السيارة الأصلية على rented
+                    # إذا كان هناك استبدال نشط على هذا العقد.
+                    # عند الاستبدال: السيارة الأصلية = available (في الإصلاح)
+                    # والسيارة البديلة = rented (مع الزبون).
+                    # أي حفظ للعقد (مثل تعديل المخالفة) يجب ألا يعيد الحالة.
+                    # ======================================================
+                    has_active_replacement = bool(
+                        self.pk
+                        and self.replacements.filter(status='active').exists()
+                    )
+                    if not has_active_replacement:
+                        locked_vehicle.status = "rented"
+                        locked_vehicle.save(update_fields=["status"])
 
     def return_vehicle(self, user=None, save=True):
         # هذه الدالة تغلق العقد بشكل آمن داخل معاملة واحدة

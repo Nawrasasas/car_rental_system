@@ -761,7 +761,8 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
             # --- قسم استبدال السيارة يظهر فقط على العقود النشطة ---
             if obj.status == 'active':
-                active_replacement = obj.replacements.filter(status='active').first()
+                # exists() أكفأ من first() هنا لأننا لا نحتاج الكائن
+                active_replacement = obj.replacements.filter(status='active').exists()
 
                 if active_replacement:
                     # يوجد استبدال نشط حاليًا: أظهر زر الإنهاء فقط
@@ -1676,7 +1677,13 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         if not obj or not obj.pk:
             return ""
 
-        active_replacement = obj.replacements.filter(status='active').first()
+        # select_related لأننا نصل لـ plate_number/brand/model مباشرةً
+        active_replacement = (
+            obj.replacements
+            .filter(status='active')
+            .select_related('replacement_vehicle', 'original_vehicle')
+            .first()
+        )
         if not active_replacement:
             return "No active replacement."
 
@@ -1701,23 +1708,6 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         )
 
     end_replacement_button.short_description = "End Active Replacement"
-
-    # ======================================================
-    # دالة خدمية: بدء الاستبدال من صفحة الإدارة
-    # ======================================================
-    def _start_replacement_from_admin(self, *, rental, replacement_vehicle_id, reason, notes=''):
-        try:
-            replacement_vehicle = Vehicle.objects.get(pk=replacement_vehicle_id)
-        except Vehicle.DoesNotExist:
-            raise ValidationError("Selected replacement vehicle was not found.")
-
-        VehicleReplacement.start_replacement(
-            rental=rental,
-            replacement_vehicle=replacement_vehicle,
-            reason=reason,
-            notes=notes,
-            user=None,  # يُمرر من response_change
-        )
 
     # ======================================================
     # دالة خدمية: إنهاء الاستبدال من صفحة الإدارة
