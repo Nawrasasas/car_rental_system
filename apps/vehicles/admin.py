@@ -4,9 +4,13 @@ from django.utils.safestring import mark_safe
 from django.db.models import Q, Count, Sum
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse, Http404
+
 from apps.accounting.models import Expense, EntryState
-from django.urls import reverse
-from apps.rentals.models import Rental
+from apps.rentals.models import Rental, VehicleReplacement
+from apps.vehicle_usage.models import VehicleUsage
+
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
@@ -17,7 +21,6 @@ from apps.attachments.inlines import AttachmentInline
 from datetime import timedelta
 from django.utils import timezone
 from django.apps import apps
-from django.http import HttpResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -70,7 +73,8 @@ class VehicleResource(resources.ModelResource):
     )
 
     # حاشية عربية: الحقول الرقمية
-    year = fields.Field(column_name="year", attribute="year", widget=IntegerWidget())
+    year = fields.Field(
+        column_name="year", attribute="year", widget=IntegerWidget(), default=None)
     seats = fields.Field(column_name="seats", attribute="seats", widget=IntegerWidget())
     current_odometer = fields.Field(
         column_name="current_odometer",
@@ -346,39 +350,49 @@ class VehicleAdmin(ImportExportModelAdmin):
     # --- ترتيب صفحة البطاقة إلى 3 أقسام رئيسية ---
     fieldsets = (
         (
-            '1) Vehicle Info',
+            "1) Vehicle Info",
             {
-                'fields': (
-                    ('plate_number', 'branch', 'status', 'is_active'),
-                    ('brand', 'model', 'year'),
-                    ('vin_number', 'engine_number'),
-                    ('color', 'fuel_type', 'transmission', 'seats'),
+                "fields": (
+                    ("plate_number", "branch", "status", "is_active"),
+                    ("brand", "model", "year"),
+                    ("vin_number", "engine_number"),
+                    ("color", "fuel_type", "transmission", "seats"),
                 )
-            }
+            },
+        ),
+        ("4) Vehicle Record",
+                 {"fields": (
+                     ("vehicle_record_button"),
+                )
+            },
         ),
         (
-            '2) Documents & Ownership',
+            "2) Documents & Ownership",
             {
-                'fields': (
-                    ('registration_expiry', 'annual_inspection_date'),
-                    ('insurance_company', 'insurance_policy_number'),
-                    ('insurance_expiry', 'ownership_type'),
-                    ('purchase_date', 'purchase_price'),
+                "fields": (
+                    ("registration_expiry", "annual_inspection_date"),
+                    ("insurance_company", "insurance_policy_number"),
+                    ("insurance_expiry", "ownership_type"),
+                    ("purchase_date", "purchase_price"),
                 )
-            }
+            },
         ),
         (
-            '3) Rental & Operations',
+            "3) Rental & Operations",
             {
-                'fields': (
-                    ('daily_price', 'weekly_price', 'monthly_price'),
-                    ('deposit_amount', 'extra_km_price'),
-                    ('current_odometer', 'current_fuel_level', 'key_count'),
-                    ('last_service_odometer', 'service_interval', 'next_service_odometer'),
-                    ('last_service_date',),
-                    ('notes',),
+                "fields": (
+                    ("daily_price", "weekly_price", "monthly_price"),
+                    ("deposit_amount", "extra_km_price"),
+                    ("current_odometer", "current_fuel_level", "key_count"),
+                    (
+                        "last_service_odometer",
+                        "service_interval",
+                        "next_service_odometer",
+                    ),
+                    ("last_service_date",),
+                    ("notes",),
                 )
-            }
+            },
         ),
     )
 
@@ -517,10 +531,324 @@ class VehicleAdmin(ImportExportModelAdmin):
 
     status_badge.short_description = "Status"
 
+    def vehicle_record_button(self, obj):
+        # --- زر فتح سجل السيارة الموحد من داخل بطاقة السيارة ---
+        if not obj or not obj.pk:
+            return "Save the vehicle first to open the vehicle record."
+
+        url = reverse(
+            f"{self.admin_site.name}:vehicles_vehicle_record",
+            args=[obj.pk],
+        )
+
+        return format_html(
+            '<a href="{}" '
+            'style="background:#0f766e; color:white; padding:10px 16px; '
+            'border-radius:8px; text-decoration:none; font-weight:600; display:inline-block;">'
+            'Open Vehicle Record'
+            '</a>',
+            url,
+        )
+
+    vehicle_record_button.short_description = "Vehicle Record"
+
+    def _format_vehicle_record_datetime(self, value):
+        # --- توحيد عرض التاريخ/الوقت داخل سجل السيارة ---
+        if not value:
+            return "-"
+
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+
+        return value.strftime("%Y-%m-%d %H:%M")
+
+    def _vehicle_record_sort_key(self, value):
+        # --- مفتاح ترتيب نصي آمن لتجميع المصادر المختلفة في جدول واحد ---
+        if not value:
+            return ""
+
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+
+        return value.strftime("%Y%m%d%H%M%S")
+
+    def _display_record_user(self, user):
+        # --- عرض اسم المستخدم بشكل لطيف داخل التفاصيل ---
+        if not user:
+            return "-"
+        return user.get_full_name() or user.username
+
+    def _build_vehicle_record_rows(self, vehicle):
+        # --- نجمع كل مصادر السجل هنا: Rental + VehicleUsage + VehicleReplacement ---
+        rows = []
+
+        # ======================================================
+        # 1) Rental rows
+        # ======================================================
+        rentals = (
+            vehicle.rentals
+            .select_related("customer", "branch", "created_by")
+            .all()
+        )
+
+        for rental in rentals:
+            details = []
+
+            if rental.created_by:
+                details.append(
+                    f"Created by: {self._display_record_user(rental.created_by)}"
+                )
+
+            if getattr(rental, "online_reference", None):
+                details.append(f"Online Ref: {rental.online_reference}")
+
+            if getattr(rental, "contract_notes", None):
+                details.append(rental.contract_notes)
+
+            reference = rental.contract_number or f"Rental #{rental.pk}"
+
+            rows.append(
+                {
+                    "source": "rental",
+                    "record_type": "Rental",
+                    "reference": reference,
+                    "related_contract": reference,
+                    "role": "Primary Vehicle",
+                    "from_branch": rental.branch.name if rental.branch else "-",
+                    "to_branch": rental.branch.name if rental.branch else "-",
+                    "time_out": self._format_vehicle_record_datetime(rental.start_date),
+                    "time_in": self._format_vehicle_record_datetime(
+                        rental.actual_return_date or rental.end_date
+                    ),
+                    "km_out": rental.pickup_odometer if rental.pickup_odometer is not None else "-",
+                    "km_in": rental.return_odometer if rental.return_odometer is not None else "-",
+                    "status": rental.display_status,
+                    "person": str(rental.customer) if rental.customer else "-",
+                    "details": " | ".join(details) if details else "-",
+                    "open_url": reverse(
+                        f"{self.admin_site.name}:rentals_rental_change",
+                        args=[rental.pk],
+                    ),
+                    "open_label": "Open Rental",
+                    "sort_key": self._vehicle_record_sort_key(
+                        rental.actual_return_date or rental.start_date
+                    ),
+                }
+            )
+
+        # ======================================================
+        # 2) VehicleUsage rows
+        # ======================================================
+        usages = (
+            vehicle.vehicle_usages
+            .select_related("source_branch", "destination_branch", "created_by")
+            .all()
+        )
+
+        for usage in usages:
+            usage_status = usage.get_status_display()
+
+            if (
+                usage.status == VehicleUsage.STATUS_ACTIVE
+                and usage.expected_return_datetime
+                and usage.expected_return_datetime < timezone.now()
+            ):
+                usage_status = f"{usage_status} / Overdue"
+
+            details = []
+
+            if usage.handover_by:
+                details.append(f"Handed by: {usage.handover_by}")
+
+            if usage.received_by:
+                details.append(f"Received by: {usage.received_by}")
+
+            if usage.created_by:
+                details.append(
+                    f"Created by: {self._display_record_user(usage.created_by)}"
+                )
+
+            if usage.notes:
+                details.append(usage.notes)
+
+            rows.append(
+                {
+                    "source": "usage",
+                    "record_type": "Vehicle Usage",
+                    "reference": usage.usage_no or f"Usage #{usage.pk}",
+                    "related_contract": "-",
+                    "role": usage.get_purpose_display(),
+                    "from_branch": usage.source_branch.name if usage.source_branch else "-",
+                    "to_branch": usage.destination_branch.name if usage.destination_branch else "-",
+                    "time_out": self._format_vehicle_record_datetime(usage.start_datetime),
+                    "time_in": self._format_vehicle_record_datetime(
+                        usage.actual_return_datetime or usage.expected_return_datetime
+                    ),
+                    "km_out": usage.pickup_odometer if usage.pickup_odometer is not None else "-",
+                    "km_in": usage.return_odometer if usage.return_odometer is not None else "-",
+                    "status": usage_status,
+                    "person": usage.employee_name or "-",
+                    "details": " | ".join(details) if details else "-",
+                    "open_url": reverse(
+                        f"{self.admin_site.name}:vehicle_usage_vehicleusage_change",
+                        args=[usage.pk],
+                    ),
+                    "open_label": "Open Usage",
+                    "sort_key": self._vehicle_record_sort_key(
+                        usage.actual_return_datetime or usage.start_datetime
+                    ),
+                }
+            )
+
+        # ======================================================
+        # 3) VehicleReplacement rows
+        # ======================================================
+        replacements = (
+            VehicleReplacement.objects.filter(
+                Q(original_vehicle_id=vehicle.pk) | Q(replacement_vehicle_id=vehicle.pk)
+            )
+            .select_related(
+                "rental",
+                "rental__customer",
+                "rental__branch",
+                "original_vehicle",
+                "replacement_vehicle",
+                "started_by",
+                "ended_by",
+            )
+            .all()
+        )
+
+        for replacement in replacements:
+            contract_ref = (
+                replacement.rental.contract_number
+                or f"Rental #{replacement.rental_id}"
+            )
+
+            is_original_vehicle = replacement.original_vehicle_id == vehicle.pk
+
+            if is_original_vehicle:
+                role = "Original Vehicle"
+                from_display = replacement.rental.branch.name if replacement.rental.branch else "-"
+                to_display = f"Temporarily Replaced by {replacement.replacement_vehicle.plate_number}"
+                main_details = (
+                    f"Original vehicle replaced by "
+                    f"{replacement.replacement_vehicle.plate_number}. "
+                    f"Reason: {replacement.reason}"
+                )
+            else:
+                role = "Replacement Vehicle"
+                from_display = "Available Fleet"
+                to_display = f"Customer / {contract_ref}"
+                main_details = (
+                    f"Sent as replacement for original vehicle "
+                    f"{replacement.original_vehicle.plate_number}. "
+                    f"Reason: {replacement.reason}"
+                )
+
+            details = [main_details]
+
+            if replacement.started_by:
+                details.append(
+                    f"Started by: {self._display_record_user(replacement.started_by)}"
+                )
+
+            if replacement.ended_by:
+                details.append(
+                    f"Ended by: {self._display_record_user(replacement.ended_by)}"
+                )
+
+            if replacement.notes:
+                details.append(replacement.notes)
+
+            rows.append(
+                {
+                    "source": "replacement",
+                    "record_type": "Vehicle Replacement",
+                    "reference": f"VR-{replacement.pk}",
+                    "related_contract": contract_ref,
+                    "role": role,
+                    "from_branch": from_display,
+                    "to_branch": to_display,
+                    "time_out": self._format_vehicle_record_datetime(replacement.started_at),
+                    "time_in": self._format_vehicle_record_datetime(replacement.ended_at),
+                    "km_out": "-",
+                    "km_in": "-",
+                    "status": replacement.get_status_display(),
+                    "person": str(replacement.rental.customer) if replacement.rental.customer else "-",
+                    "details": " | ".join(details),
+                    "open_url": reverse(
+                        f"{self.admin_site.name}:rentals_rental_change",
+                        args=[replacement.rental_id],
+                    ),
+                    "open_label": "Open Rental",
+                    "sort_key": self._vehicle_record_sort_key(
+                        replacement.ended_at or replacement.started_at
+                    ),
+                }
+            )
+
+        # --- ترتيب نهائي تنازلي بحيث يظهر الأحدث أولًا ---
+        rows.sort(key=lambda row: row["sort_key"], reverse=True)
+        return rows
+
+    def vehicle_record_view(self, request, object_id):
+        # --- صفحة مستقلة داخل الأدمن لعرض سجل السيارة الموحد ---
+        vehicle = self.get_object(request, object_id)
+
+        if vehicle is None:
+            raise Http404("Vehicle not found.")
+
+        if not (
+            self.has_view_permission(request, vehicle)
+            or self.has_change_permission(request, vehicle)
+        ):
+            raise PermissionDenied
+
+        rows = self._build_vehicle_record_rows(vehicle)
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title=f"Vehicle Record - {vehicle.plate_number}",
+            opts=self.model._meta,
+            original=vehicle,
+            vehicle=vehicle,
+            rows=rows,
+            record_summary={
+                "all": len(rows),
+                "rentals": sum(1 for row in rows if row["source"] == "rental"),
+                "usages": sum(1 for row in rows if row["source"] == "usage"),
+                "replacements": sum(1 for row in rows if row["source"] == "replacement"),
+            },
+            admin_index_url=reverse(f"{self.admin_site.name}:index"),
+            app_list_url=reverse(
+                f"{self.admin_site.name}:app_list",
+                kwargs={"app_label": self.model._meta.app_label},
+            ),
+            vehicle_changelist_url=reverse(
+                f"{self.admin_site.name}:vehicles_vehicle_changelist"
+            ),
+            vehicle_change_url=reverse(
+                f"{self.admin_site.name}:vehicles_vehicle_change",
+                args=[vehicle.pk],
+            ),
+        )
+
+        return TemplateResponse(
+            request,
+            "admin/vehicles/vehicle/vehicle_record.html",
+            context,
+        )
+
     def get_urls(self):
-        # --- إضافة رابط عرض التقرير + رابط تصدير الإكسل لنفس التقرير ---
+        # --- إضافة رابط سجل السيارة الموحد مع الإبقاء على الروابط الحالية ---
         urls = super().get_urls()
         custom_urls = [
+            path(
+                "<path:object_id>/vehicle-record/",
+                self.admin_site.admin_view(self.vehicle_record_view),
+                name="vehicles_vehicle_record",
+            ),
             path(
                 "vehicle-expense-ranking/",
                 self.admin_site.admin_view(self.vehicle_expense_ranking_view),
@@ -796,49 +1124,56 @@ class VehicleAdmin(ImportExportModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+
+        # --- زر السجل الموحد يظهر كحقل قراءة فقط دائمًا ---
+        readonly.append("vehicle_record_button")
+
         # --- إذا السيارة لديها عقد نشط نمنع تعديل الحالة ---
-        if obj and obj.rentals.filter(status='active').exists():
-            return ('status',)
-        return ()
+        if obj and obj.rentals.filter(status="active").exists():
+            readonly.append("status")
 
-    def get_search_results(self, request, queryset, search_term):
-        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        return tuple(dict.fromkeys(readonly))
 
-        app_label = request.GET.get("app_label")
-        model_name = request.GET.get("model_name")
-        field_name = request.GET.get("field_name")
-        object_id = request.resolver_match.kwargs.get("object_id")
 
-        # --- نفس منطق العقود الحالي ---
-        if app_label == "rentals" and model_name == "rental" and field_name == "vehicle":
-            if object_id:
-                try:
-                    rental = Rental.objects.only("vehicle_id").get(pk=object_id)
-                    queryset = queryset.filter(
-                        Q(status="available") | Q(pk=rental.vehicle_id)
-                    )
-                except Rental.DoesNotExist:
-                    queryset = queryset.filter(status="available")
-            else:
+def get_search_results(self, request, queryset, search_term):
+    queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+
+    app_label = request.GET.get("app_label")
+    model_name = request.GET.get("model_name")
+    field_name = request.GET.get("field_name")
+    object_id = request.resolver_match.kwargs.get("object_id")
+
+    # --- نعتمد فقط على حالة السيارة الحالية ---
+    if app_label == "rentals" and model_name == "rental" and field_name == "vehicle":
+        if object_id:
+            try:
+                rental = Rental.objects.only("vehicle_id").get(pk=object_id)
+                queryset = queryset.filter(
+                    Q(status="available") | Q(pk=rental.vehicle_id)
+                )
+            except Rental.DoesNotExist:
                 queryset = queryset.filter(status="available")
+        else:
+            queryset = queryset.filter(status="available")
 
-        # --- نفس المنطق لكن لتطبيق الاستخدام الداخلي ---
-        elif (
-            app_label == "vehicle_usage"
-            and model_name == "vehicleusage"
-            and field_name == "vehicle"
-        ):
-            VehicleUsage = apps.get_model("vehicle_usage", "VehicleUsage")
+    # --- نفس المنطق في Vehicle Usage ---
+    elif (
+        app_label == "vehicle_usage"
+        and model_name == "vehicleusage"
+        and field_name == "vehicle"
+    ):
+        VehicleUsage = apps.get_model("vehicle_usage", "VehicleUsage")
 
-            if object_id:
-                try:
-                    usage = VehicleUsage.objects.only("vehicle_id").get(pk=object_id)
-                    queryset = queryset.filter(
-                        Q(status="available") | Q(pk=usage.vehicle_id)
-                    )
-                except VehicleUsage.DoesNotExist:
-                    queryset = queryset.filter(status="available")
-            else:
+        if object_id:
+            try:
+                usage = VehicleUsage.objects.only("vehicle_id").get(pk=object_id)
+                queryset = queryset.filter(
+                    Q(status="available") | Q(pk=usage.vehicle_id)
+                )
+            except VehicleUsage.DoesNotExist:
                 queryset = queryset.filter(status="available")
+        else:
+            queryset = queryset.filter(status="available")
 
-        return queryset, use_distinct
+    return queryset, use_distinct

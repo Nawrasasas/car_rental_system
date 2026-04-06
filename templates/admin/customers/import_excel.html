@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<h2>استيراد زبائن من Excel</h2>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div style="margin: 20px 0; padding: 20px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 6px; max-width: 500px;">
+
+        <div style="margin-bottom: 16px;">
+            <label style="display:block; font-weight:bold; margin-bottom:6px;">اختر ملف Excel:</label>
+            <input type="file" name="excel_file" accept=".xlsx" required style="width:100%;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label>
+                <input type="checkbox" name="skip_errors">
+                تخطي الصفوف الخاطئة والمتابعة
+            </label>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <input type="submit" value="استيراد" class="button default" style="background:#417690; color:white; padding:8px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
+            <a href="../" class="button" style="padding:8px 20px; background:#ddd; border-radius:4px; text-decoration:none; color:#333;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
+<div style="margin-top: 20px; padding: 16px; background: #e8f4fd; border-left: 4px solid #417690; max-width: 500px;">
+    <strong>ملاحظات:</strong>
+    <ul style="margin: 8px 0 0; padding-right: 20px;">
+        <li>يجب استخدام القالب الرسمي <code>customers_import_template.xlsx</code></li>
+        <li>البيانات تبدأ من السطر 4</li>
+        <li>الزبائن المكررين (نفس رقم الهاتف) سيتم تخطيهم تلقائياً</li>
+    </ul>
+</div>
+
+{% endblock %}

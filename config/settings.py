@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.deposits",
     "apps.traffic_fines",
     "apps.vehicle_usage",
+    "apps.exchange_rates",
 ]
 
 MIDDLEWARE = [
@@ -79,24 +80,35 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # =========================
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        # قاعدة PostgreSQL المحلية الفعلية التي تعمل عليها الآن
-        "NAME": "car_rental_dev_test",
-        # اسم مستخدم PostgreSQL المحلي
-        "USER": "dev",
-        # ضع هنا كلمة المرور الفعلية لمستخدم PostgreSQL المحلي dev
-        "PASSWORD": "09900990",
-        # نستخدم 127.0.0.1 مباشرة لتفادي أي التباس مع localhost / IPv6
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
-        "CONN_MAX_AGE": 60,
-        "OPTIONS": {
-            "connect_timeout": 10,
-        },
+# إعدادات قواعد البيانات: اللابتوب يبقى PostgreSQL
+# والسيرفر يمكن إجباره على SQLite عبر متغير بيئة USE_SQLITE=1
+
+import os
+
+USE_SQLITE = os.environ.get("USE_SQLITE", "0") == "1"
+
+if USE_SQLITE:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "car_rental_dev_test",
+            "USER": "dev",
+            "PASSWORD": "09900990",
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+            "CONN_MAX_AGE": 60,
+            "OPTIONS": {
+                "connect_timeout": 10,
+            },
+        }
+    }
 
 AUTH_USER_MODEL = "accounts.User"
 

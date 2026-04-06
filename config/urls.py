@@ -14,12 +14,12 @@ urlpatterns = [
     # --- حاشية: هذا المسار الجديد هو الذي سيستخدمه تطبيق الموبايل ---
     path("auth/", include("apps.accounts.urls")),
 
-    path("invoices/", include("apps.invoices.urls")),
+  
     path("rentals/", include("apps.rentals.urls")),
     path("vehicles/", include("apps.vehicles.urls")),
-    path("customers/", include("apps.customers.urls")),
-    path("payments/", include("apps.payments.urls")),
-    path("reports/", include("apps.reports.urls")),
+
+   
+
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

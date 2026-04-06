@@ -1,45 +1,1017 @@
-{# PATH: templates/admin/rentals/rental/change_form.html #}
 {% extends "admin/change_form.html" %}
 {% load i18n %}
 
 {% block extrahead %}
     {{ block.super }}
-  
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+    <style>
+
+        /* =========================================================
+           CSS VARIABLES — LUXURY FINANCIAL PALETTE
+        ========================================================= */
+        :root {
+            --ink:        #0a0f1e;
+            --ink-2:      #111827;
+            --ink-3:      #1e293b;
+            --ink-4:      #263246;
+            --glass:      rgba(255,255,255,0.04);
+            --glass-b:    rgba(255,255,255,0.08);
+            --border:     rgba(255,255,255,0.09);
+            --border-2:   rgba(255,255,255,0.14);
+            --text-1:     #10c97c;
+            --text-2:     #94a3c0;
+            --text-3:     #93bbff;
+            --blue:       #3b7eff;  
+            --blue-glow:  rgba(56, 122, 244, 0.28);
+            --blue-dim:   rgba(59,126,255,0.12);
+            --emerald:    #10c97c;
+            --emerald-dim:rgba(16,201,124,0.12);
+            --rose:       #f43f5e;
+            --rose-dim:   rgba(244,63,94,0.12);
+            --amber:      #f59e0b;
+            --amber-dim:  rgba(245,158,11,0.12);
+            --gold:       #fbbf24;
+            --radius-sm:  8px;
+            --radius-md:  14px;
+            --radius-lg:  20px;
+            --shadow-card:0 4px 24px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.2);
+            --shadow-glow:0 0 32px var(--blue-glow);
+            --font-display:'Syne', sans-serif;
+            --font-body:   'DM Sans', sans-serif;
+            --transition:  all 0.22s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        /* =========================================================
+           STICKY PAYMENT SUMMARY BAR
+        ========================================================= */
+        .rp-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            background: linear-gradient(180deg, #0a0f1e 0%, #0d1526 100%);
+            padding: 14px 20px 12px;
+            margin: 0 -20px 24px;
+            border-bottom: 1px solid var(--border-2);
+            box-shadow:
+                0 8px 32px rgba(0,0,0,0.5),
+                0 1px 0 rgba(255,255,255,0.06) inset,
+                0 0 80px rgba(59,126,255,0.06);
+            font-family: var(--font-body);
+        }
+
+        /* Subtle animated top accent line */
+        .rp-sticky::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--blue) 30%,
+                var(--emerald) 60%,
+                transparent 100%
+            );
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* =========================================================
+           SUMMARY METRIC CARDS
+        ========================================================= */
+        .rp-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 900px) {
+            .rp-summary { grid-template-columns: 1fr 1fr; }
+        }
+
+        .rp-metric {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            position: relative;
+            overflow: hidden;
+            cursor: default;
+            transition: var(--transition);
+            backdrop-filter: blur(12px);
+        }
+
+        .rp-metric::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .rp-metric:hover {
+            border-color: var(--border-2);
+            background: var(--glass-b);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .rp-metric__label {
+            font-family: var(--font-display);
+            font-size: 9.5px;
+            color: var(--text-3);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .rp-metric__value {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text-1);
+            line-height: 1.1;
+            letter-spacing: -0.5px;
+        }
+
+        .rp-metric__sub {
+            font-family: var(--font-body);
+            font-size: 10px;
+            color: var(--text-3);
+            margin-top: 4px;
+            letter-spacing: 0.2px;
+        }
+
+        /* Value color variants */
+        .rp-metric__value--paid    { color: var(--emerald); }
+        .rp-metric__value--balance { color: var(--rose); }
+        .rp-metric__value--zero    { color: var(--emerald); }
+        .rp-metric__value--refund  { color: var(--amber); }
+
+        /* Card variants */
+        .rp-metric--warn {
+            background: rgba(245,158,11,0.08);
+            border-color: rgba(245,158,11,0.25);
+        }
+        .rp-metric--warn .rp-metric__label { color: var(--amber); }
+        .rp-metric--warn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--amber);
+            border-radius: inherit inherit 0 0;
+        }
+
+        .rp-metric--done {
+            background: var(--emerald-dim);
+            border-color: rgba(16,201,124,0.25);
+        }
+        .rp-metric--done::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--emerald);
+        }
+
+        /* =========================================================
+           BREAKDOWN ROW
+        ========================================================= */
+        .rp-breakdown {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            align-items: stretch;
+        }
+
+        .rp-breakdown__item {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 7px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-body);
+            font-size: 11.5px;
+            color: var(--text-2);
+            flex: 1;
+            min-width: 160px;
+            transition: var(--transition);
+        }
+
+        .rp-breakdown__item:hover {
+            border-color: var(--border-2);
+            background: var(--glass-b);
+        }
+
+        .rp-breakdown__item .label {
+            font-weight: 600;
+            color: var(--text-2);
+            white-space: nowrap;
+        }
+
+        .rp-breakdown__item .amount {
+            font-weight: 700;
+            color: var(--emerald);
+            font-family: var(--font-display);
+        }
+
+        .rp-breakdown__item .refund-note {
+            font-size: 10px;
+            color: var(--amber);
+            white-space: nowrap;
+        }
+
+        .rp-breakdown__item .sep {
+            color: var(--border-2);
+            margin: 0 2px;
+        }
+
+        /* =========================================================
+           ACTION BUTTONS ROW
+        ========================================================= */
+        .rp-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .rp-actions a,
+        .rp-actions button {
+            font-family: var(--font-body) !important;
+            padding: 8px 18px !important;
+            border-radius: var(--radius-sm) !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            white-space: nowrap !important;
+            transition: var(--transition) !important;
+            letter-spacing: 0.3px !important;
+        }
+
+        /* =========================================================
+           STATUS BADGES
+        ========================================================= */
+        .rp-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-family: var(--font-display);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .rp-status-badge--paid {
+            background: var(--emerald-dim);
+            color: var(--emerald);
+            border: 1px solid rgba(16,201,124,0.3);
+        }
+        .rp-status-badge--partial {
+            background: var(--amber-dim);
+            color: var(--amber);
+            border: 1px solid rgba(245,158,11,0.3);
+        }
+        .rp-status-badge--unpaid {
+            background: var(--rose-dim);
+            color: var(--rose);
+            border: 1px solid rgba(244,63,94,0.3);
+        }
+        .rp-status-badge--overdue {
+            background: rgba(239,68,68,0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+
+        /* =========================================================
+           FIELD GROUP STYLES (CREATE FORM)
+        ========================================================= */
+        .field-initial_payment_amount,
+        .field-initial_payment_method {
+            background: rgba(59,126,255,0.06) !important;
+            border: 1px solid rgba(59,126,255,0.2) !important;
+            border-radius: var(--radius-sm) !important;
+            padding: 12px !important;
+            transition: var(--transition);
+        }
+
+        .field-initial_payment_amount:hover,
+        .field-initial_payment_method:hover {
+            background: rgba(59,126,255,0.1) !important;
+            border-color: rgba(59,126,255,0.35) !important;
+        }
+
+        .field-initial_payment_amount label,
+        .field-initial_payment_method label {
+            color: var(--blue) !important;
+            font-weight: 700 !important;
+            font-family: var(--font-body) !important;
+        }
+
+        .field-initial_payment_amount input,
+        .field-initial_payment_method select {
+            border-color: rgba(59,126,255,0.3) !important;
+            background: rgba(255,255,255,0.03) !important;
+            color: var(--text-1) !important;
+        }
+
+        .field-initial_deposit_amount,
+        .field-initial_deposit_method {
+            background: var(--emerald-dim) !important;
+            border: 1px solid rgba(16,201,124,0.2) !important;
+            border-radius: var(--radius-sm) !important;
+            padding: 12px !important;
+            transition: var(--transition);
+        }
+
+        .field-initial_deposit_amount:hover,
+        .field-initial_deposit_method:hover {
+            background: rgba(16,201,124,0.15) !important;
+            border-color: rgba(16,201,124,0.35) !important;
+        }
+
+        .field-initial_deposit_amount label,
+        .field-initial_deposit_method label {
+            color: var(--emerald) !important;
+            font-weight: 700 !important;
+            font-family: var(--font-body) !important;
+        }
+
+        .field-initial_deposit_amount input,
+        .field-initial_deposit_method select {
+            border-color: rgba(16,201,124,0.3) !important;
+            background: rgba(255,255,255,0.03) !important;
+        }
+
+        /* =========================================================
+           PAYMENT PREVIEW BOX (CREATE MODE) — PREMIUM DESIGN
+        ========================================================= */
+        #rp-create-preview {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 999 !important;
+            background: linear-gradient(180deg, #080d1a 0%, #0c1220 100%) !important;
+            border: none !important;
+            border-bottom: 1px solid rgba(59,126,255,0.2) !important;
+            padding: 16px 20px 14px !important;
+            margin: 0 -20px 28px !important;
+            box-shadow:
+                0 12px 40px rgba(0,0,0,0.6),
+                0 0 80px rgba(59,126,255,0.08),
+                0 1px 0 rgba(255,255,255,0.05) inset !important;
+            font-family: var(--font-body) !important;
+        }
+
+        #rp-create-preview::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                transparent,
+                var(--blue) 25%,
+                #60a5fa 50%,
+                var(--emerald) 75%,
+                transparent
+            );
+            animation: scanline 3s ease-in-out infinite;
+        }
+
+        @keyframes scanline {
+            0%, 100% { opacity: 0.7; transform: scaleX(0.95); }
+            50% { opacity: 1; transform: scaleX(1); }
+        }
+
+        /* Preview header */
+        .rp-preview-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .rp-preview-eyebrow {
+            font-family: var(--font-display);
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .rp-preview-subtitle {
+            font-size: 11px;
+            color: var(--text-3);
+        }
+
+        .rp-preview-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--blue);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--blue-glow); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+        }
+
+        /* Preview cards grid */
+        .rp-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 900px) {
+            .rp-preview-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .rp-preview-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .rp-preview-card:hover {
+            border-color: rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.07);
+        }
+
+        .rp-preview-card--total {
+            background: linear-gradient(135deg,
+                rgba(59,126,255,0.18) 0%,
+                rgba(59,126,255,0.08) 100%
+            );
+            border-color: rgba(59,126,255,0.35);
+            box-shadow: 0 0 24px rgba(59,126,255,0.12);
+        }
+
+        .rp-preview-card--total:hover {
+            border-color: rgba(59,126,255,0.5);
+            box-shadow: 0 0 32px rgba(59,126,255,0.2);
+        }
+
+        .rp-preview-card__label {
+            font-family: var(--font-display);
+            font-size: 9px;
+            color: var(--text-3);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 5px;
+        }
+
+        .rp-preview-card--total .rp-preview-card__label {
+            color: #93bbff;
+        }
+
+        .rp-preview-card__value {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text-1);
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+            transition: var(--transition);
+        }
+
+        .rp-preview-card--total .rp-preview-card__value {
+            font-size: 26px;
+            color: #10c957;
+            text-shadow: 0 0 20px rgba(59,126,255,0.5);
+        }
+
+        .rp-preview-card__sub {
+            font-size: 10px;
+            color: var(--text-3);
+            margin-top: 5px;
+        }
+
+        .rp-preview-card--total .rp-preview-card__sub {
+            color: rgba(252,165,165,0.9);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .rp-preview-card__icon {
+            position: absolute;
+            right: 12px; top: 12px;
+            font-size: 18px;
+            opacity: 0.15;
+        }
+
+        /* Extras row */
+        .rp-extras-row {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: var(--radius-sm);
+            padding: 7px 14px;
+            font-size: 11px;
+            color: var(--text-2);
+            display: none;
+            gap: 0;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .rp-extras-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 10.5px;
+            margin: 2px 3px;
+            color: var(--text-2);
+        }
+                /* تكبير عرض حقل Additional Driver */
+        .field-additional_driver .related-widget-wrapper {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            width: 100% !important;
+        }
+
+        .field-additional_driver .related-widget-wrapper select {
+            min-width: 260px !important;
+            width: 260px !important;
+            max-width: 260px !important;
+        }
+
+        .field-additional_driver .related-widget-wrapper .related-widget-wrapper-link {
+            flex: 0 0 auto !important;
+        }
+
+    </style>
 {% endblock %}
 
 {% block content %}
     {% if original %}
-        <div class="rental-payment-summary">
-            <div class="rental-payment-summary__title">
-                Payment Summary
-            </div>
+    <div class="rp-sticky">
 
-            <div class="rental-payment-summary__row rental-payment-summary__row--nettotal">
-                <span class="rental-payment-summary__label rental-payment-summary__label--nettotal">
-                    Net Total
-                </span>
-                <span class="rental-payment-summary__value rental-payment-summary__value--nettotal">
+        <!-- ======================================================
+             الصف الأول: 4 بطاقات رئيسية
+        ====================================================== -->
+        <div class="rp-summary">
+
+            <div class="rp-metric">
+                <div class="rp-metric__label">📋 Contract Amount</div>
+                <div class="rp-metric__value">
                     ${{ summary_net_total|floatformat:2 }}
-                </span>
+                </div>
+                <div class="rp-metric__sub">Total incl. deposit &amp; fees</div>
             </div>
 
-            <div class="rental-payment-summary__row">
-                <span class="rental-payment-summary__label">Total Paid</span>
-                <span class="rental-payment-summary__value rental-payment-summary__value--paid">
+            <div class="rp-metric">
+                <div class="rp-metric__label">✅ Total Paid</div>
+                <div class="rp-metric__value rp-metric__value--paid">
                     ${{ summary_total_paid|floatformat:2 }}
-                </span>
+                </div>
+                {% if summary_total_refunded and summary_total_refunded > 0 %}
+                <div class="rp-metric__sub" style="color:var(--amber);">
+                    − ${{ summary_total_refunded|floatformat:2 }} refunded
+                </div>
+                {% else %}
+                <div class="rp-metric__sub">Net of refunds</div>
+                {% endif %}
             </div>
 
-            <div class="rental-payment-summary__row rental-payment-summary__row--last">
-                <span class="rental-payment-summary__label rental-payment-summary__label--strong">
-                    Remaining Balance
-                </span>
-                <span class="rental-payment-summary__value rental-payment-summary__value--remaining">
+            {% if summary_remaining_balance and summary_remaining_balance > 0 %}
+            <div class="rp-metric">
+                <div class="rp-metric__label">⏳ Remaining Balance</div>
+                <div class="rp-metric__value rp-metric__value--balance">
                     ${{ summary_remaining_balance|floatformat:2 }}
-                </span>
+                </div>
+                <div class="rp-metric__sub">Still outstanding</div>
             </div>
+            {% else %}
+            <div class="rp-metric rp-metric--done">
+                <div class="rp-metric__label">✔ Remaining Balance</div>
+                <div class="rp-metric__value rp-metric__value--zero">$0.00</div>
+                <div class="rp-metric__sub">Fully settled</div>
+            </div>
+            {% endif %}
+
+            {% if is_overdue %}
+            <div class="rp-metric rp-metric--warn">
+                <div class="rp-metric__label">⚠ Overdue</div>
+                <div class="rp-metric__value" style="font-size:15px; color:var(--amber);">
+                    {{ overdue_days }} day{{ overdue_days|pluralize }} late
+                </div>
+                <div class="rp-metric__sub" style="color:var(--amber); opacity:.7;">Vehicle not returned</div>
+            </div>
+            {% else %}
+            <div class="rp-metric">
+                <div class="rp-metric__label">📌 Status</div>
+                <div class="rp-metric__value" style="font-size:15px;">
+                    {{ original.get_status_display }}
+                </div>
+                <div class="rp-metric__sub">
+                    {% if summary_remaining_balance and summary_remaining_balance > 0 %}
+                    <span class="rp-status-badge rp-status-badge--partial">Partial Payment</span>
+                    {% elif summary_total_paid and summary_total_paid > 0 %}
+                    <span class="rp-status-badge rp-status-badge--paid">Fully Paid</span>
+                    {% else %}
+                    <span class="rp-status-badge rp-status-badge--unpaid">Unpaid</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
         </div>
+
+        <!-- ======================================================
+             الصف الثاني: تفاصيل التوزيع
+        ====================================================== -->
+        <div class="rp-breakdown">
+
+            <div class="rp-breakdown__item">
+                <span class="label">💰 Payments:</span>
+                <span class="amount">${{ summary_contract_net|floatformat:2 }}</span>
+                {% if summary_contract_refunded and summary_contract_refunded > 0 %}
+                <span class="sep">|</span>
+                <span class="refund-note">gross ${{ summary_contract_gross|floatformat:2 }} − refund ${{ summary_contract_refunded|floatformat:2 }}</span>
+                {% endif %}
+            </div>
+
+            {% if summary_deposit_gross and summary_deposit_gross > 0 %}
+            <div class="rp-breakdown__item">
+                <span class="label">🔒 Deposit:</span>
+                <span class="amount">${{ summary_deposit_net|floatformat:2 }}</span>
+                {% if summary_deposit_refunded and summary_deposit_refunded > 0 %}
+                <span class="sep">|</span>
+                <span class="refund-note">gross ${{ summary_deposit_gross|floatformat:2 }} − refund ${{ summary_deposit_refunded|floatformat:2 }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if summary_fine and summary_fine > 0 %}
+            <div class="rp-breakdown__item">
+                <span class="label">🚦 Traffic Fine:</span>
+                <span class="amount">${{ summary_fine|floatformat:2 }}</span>
+                <span class="refund-note">collected</span>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- ======================================================
+             الصف الثالث: أزرار العمليات
+        ====================================================== -->
+        <div class="rp-actions">
+            {{ btn_print }}
+            {{ btn_post }}
+            {{ btn_collect }}
+            {{ btn_fine }}
+            {{ btn_return }}
+            {{ btn_cancel }}
+        </div>
+
+    </div>
     {% endif %}
 
+    {% if not original %}
+    <!-- =========================================================
+        PAYMENT PREVIEW BOX — CREATE MODE — PREMIUM REDESIGN
+    ========================================================= -->
+    <div id="rp-create-preview">
+
+        <div class="rp-preview-header">
+            <div class="rp-preview-dot"></div>
+            <span class="rp-preview-eyebrow">Payment Preview</span>
+            <span class="rp-preview-subtitle">— live calculation as you fill the form</span>
+        </div>
+
+        <div class="rp-preview-grid">
+
+            <!-- Contract Rent -->
+            <div class="rp-preview-card">
+                <div class="rp-preview-card__icon">🚗</div>
+                <div class="rp-preview-card__label">Contract Rent</div>
+                <div class="rp-preview-card__value" id="prev-rent">$0.00</div>
+                <div class="rp-preview-card__sub">Rent + VAT + charges</div>
+            </div>
+
+            <!-- Deposit -->
+            <div class="rp-preview-card">
+                <div class="rp-preview-card__icon">🔒</div>
+                <div class="rp-preview-card__label">Deposit</div>
+                <div class="rp-preview-card__value" id="prev-deposit">$0.00</div>
+                <div class="rp-preview-card__sub">Contract deposit total</div>
+            </div>
+
+            <!-- Advance Contract Rent -->
+            <div class="rp-preview-card">
+                <div class="rp-preview-card__icon">💳</div>
+                <div class="rp-preview-card__label">Advance Contract Rent</div>
+                <div class="rp-preview-card__value" id="prev-advance-total" style="color:var(--emerald);">$0.00</div>
+                <div class="rp-preview-card__sub" id="prev-advance-breakdown">Rent $0.00 + Deposit $0.00</div>
+            </div>
+
+            <!-- NET TOTAL -->
+            <div class="rp-preview-card rp-preview-card--total">
+                <div class="rp-preview-card__icon">⭐</div>
+                <div class="rp-preview-card__label">NET TOTAL</div>
+                <div class="rp-preview-card__value" id="prev-net-total">$0.00</div>
+                <div class="rp-preview-card__sub" id="prev-remaining-balance">Remaining Balance: $0.00</div>
+            </div>
+
+        </div>
+
+        <!-- Extras details row -->
+        <div id="prev-extras-row" class="rp-extras-row"></div>
+
+    </div>
+    {% endif %}
+
+    <script>
+    (function() {
+        function q(id) { return document.getElementById(id); }
+
+        function pick(selectors) {
+            for (var i = 0; i < selectors.length; i++) {
+                var el = document.querySelector(selectors[i]);
+                if (el) return el;
+            }
+            return null;
+        }
+
+        function fv(selectors) {
+            var el = pick(selectors);
+            return el ? parseFloat(el.value) || 0 : 0;
+        }
+
+        function sv(selectors) {
+            var el = pick(selectors);
+            return el ? (el.value || '').trim() : '';
+        }
+
+        function getCurrencyMeta() {
+            var currencyEl = document.getElementById('id_currency_code');
+            var code = currencyEl ? (currencyEl.value || 'USD') : 'USD';
+
+            var map = {
+                USD: { symbol: '$', name: 'US Dollar' },
+                IQD: { symbol: 'IQD ', name: 'Iraqi Dinar' },
+                SYP: { symbol: 'SYP ', name: 'Syrian Pound' },
+                AED: { symbol: 'AED ', name: 'UAE Dirham' }
+            };
+
+            return map[code] || map.USD;
+        }
+
+        function fmt(n) {
+            var meta = getCurrencyMeta();
+            return meta.symbol + (Number(n) || 0).toFixed(2);
+        }
+
+        function parseDateTime(dateStr, timeStr) {
+            if (!dateStr) return null;
+            timeStr = timeStr || '00:00';
+            var year, month, day;
+            if (dateStr.indexOf('-') !== -1) {
+                var partsDash = dateStr.split('-');
+                if (partsDash.length !== 3) return null;
+                year  = parseInt(partsDash[0], 10);
+                month = parseInt(partsDash[1], 10) - 1;
+                day   = parseInt(partsDash[2], 10);
+            } else if (dateStr.indexOf('/') !== -1) {
+                var partsSlash = dateStr.split('/');
+                if (partsSlash.length !== 3) return null;
+                day   = parseInt(partsSlash[0], 10);
+                month = parseInt(partsSlash[1], 10) - 1;
+                year  = parseInt(partsSlash[2], 10);
+            } else {
+                return null;
+            }
+            var hour = 0, minute = 0;
+            if (timeStr.indexOf(':') !== -1) {
+                var t = timeStr.split(':');
+                hour   = parseInt(t[0], 10) || 0;
+                minute = parseInt(t[1], 10) || 0;
+            }
+            var dt = new Date(year, month, day, hour, minute, 0, 0);
+            if (isNaN(dt.getTime())) return null;
+            return dt;
+        }
+
+        function getRentalDays() {
+            var startDateRaw = sv(['#id_start_date_0', '#id_start_date']);
+            var startTimeRaw = sv(['#id_start_date_1']) || '00:00';
+            var endDateRaw   = sv(['#id_end_date_0', '#id_end_date']);
+            var endTimeRaw   = sv(['#id_end_date_1']) || '00:00';
+            var start = parseDateTime(startDateRaw, startTimeRaw);
+            var end   = parseDateTime(endDateRaw, endTimeRaw);
+            if (!start || !end || end < start) return 0;
+            start.setMinutes(0, 0, 0);
+            end.setMinutes(0, 0, 0);
+            var diffMs      = end - start;
+            var dayMs       = 1000 * 60 * 60 * 24;
+            var daysPart    = Math.floor(diffMs / dayMs);
+            var remainingMs = diffMs % dayMs;
+            return Math.max(1, daysPart + (remainingMs > 0 ? 1 : 0));
+        }
+
+        // Animate number change
+        function animateValue(el, newText) {
+            if (!el) return;
+            if (el.textContent === newText) return;
+            el.style.transition = 'opacity 0.15s, transform 0.15s';
+            el.style.opacity = '0.3';
+            el.style.transform = 'translateY(-4px)';
+            setTimeout(function() {
+                el.textContent = newText;
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 120);
+        }
+
+        function update() {
+            var dailyRate       = fv(['#id_daily_rate']);
+            var vat             = fv(['#id_vat_percentage']);
+            var deposit         = fv(['#id_deposit_amount']);
+            var fines           = fv(['#id_traffic_fines']);
+            var damage          = fv(['#id_damage_fees']);
+            var babySeat        = fv(['#id_baby_seat_fee']);
+            var insurance       = fv(['#id_insurance_fee']);
+            var other           = fv(['#id_other_charges']);
+
+            var advanceRent     = fv(['#id_initial_payment_amount']);
+            var advanceDeposit  = fv(['#id_initial_deposit_amount']);
+
+            var rentalDays = getRentalDays();
+
+            // --- Contract Rent = كل شيء ما عدا مبلغ التأمين ---
+            // --- لذلك ندخل baby seat + insurance + fines + damage + other ضمنه ---
+            var subtotal      = dailyRate * rentalDays;
+            var vatAmt        = subtotal * vat / 100;
+            var contractRent  =
+                subtotal
+                + vatAmt
+                + fines
+                + damage
+                + babySeat
+                + insurance
+                + other;
+
+            // --- Net Total = Contract Rent + Deposit ---
+            var netTotal = contractRent + deposit;
+
+            // --- Advance Contract Rent = Advance Rent + Advance Deposit ---
+            var advanceContractRent = advanceRent + advanceDeposit;
+
+            // --- Remaining Balance = Net Total - Advance Contract Rent ---
+            var remainingBalance = netTotal - advanceContractRent;
+
+            if (q('prev-rent')) {
+                q('prev-rent').textContent = fmt(contractRent);
+            }
+
+            if (q('prev-deposit')) {
+                q('prev-deposit').textContent = fmt(deposit);
+            }
+
+            if (q('prev-advance-total')) {
+                q('prev-advance-total').textContent = fmt(advanceContractRent);
+            }
+
+            if (q('prev-advance-breakdown')) {
+                q('prev-advance-breakdown').textContent =
+                    'Rent ' + fmt(advanceRent) + ' + Deposit ' + fmt(advanceDeposit);
+            }
+
+            if (q('prev-net-total')) {
+                q('prev-net-total').textContent = fmt(netTotal);
+            }
+
+            if (q('prev-remaining-balance')) {
+                q('prev-remaining-balance').textContent =
+                    'Remaining Balance: ' + fmt(remainingBalance);
+            }
+
+            // --- صف التفاصيل السفلي ---
+            var extras = [];
+
+            if (rentalDays > 0 || dailyRate > 0) {
+                extras.push('📅 ' + rentalDays + ' day' + (rentalDays !== 1 ? 's' : '') + ' × ' + fmt(dailyRate));
+            }
+
+            if (vat > 0) {
+                extras.push('🧾 VAT (' + vat + '%): ' + fmt(vatAmt));
+            }
+
+            if (fines > 0) {
+                extras.push('🚦 Traffic Fine: ' + fmt(fines));
+            }
+
+            if (damage > 0) {
+                extras.push('🔧 Damage: ' + fmt(damage));
+            }
+
+            if (babySeat > 0) {
+                extras.push('👶 Baby Seat: ' + fmt(babySeat));
+            }
+
+            if (insurance > 0) {
+                extras.push('🛡 Insurance Fee: ' + fmt(insurance));
+            }
+
+            if (other > 0) {
+                extras.push('➕ Other Charges: ' + fmt(other));
+            }
+
+            if (advanceRent > 0) {
+                extras.push('💳 Advance Rent: ' + fmt(advanceRent));
+            }
+
+            if (advanceDeposit > 0) {
+                extras.push('🔒 Advance Deposit: ' + fmt(advanceDeposit));
+            }
+
+            var row = q('prev-extras-row');
+            if (row) {
+                row.textContent = extras.join('   |   ');
+                row.style.display = extras.length ? 'flex' : 'none';
+            }
+        
+            if (row) {
+                if (extras.length) {
+                    row.innerHTML = extras.map(function(e) {
+                        return '<span class="rp-extras-pill">' + e + '</span>';
+                    }).join('');
+                    row.style.display = 'flex';
+                } else {
+                    row.innerHTML = '';
+                    row.style.display = 'none';
+                }
+            }
+        }
+
+        var watchIds = [
+            'id_currency_code',
+            'id_daily_rate',
+            'id_start_date',
+            'id_start_date_0',
+            'id_start_date_1',
+            'id_end_date',
+            'id_end_date_0',
+            'id_end_date_1',
+            'id_vat_percentage',
+            'id_deposit_amount',
+            'id_traffic_fines',
+            'id_damage_fees',
+            'id_other_charges',
+            'id_initial_payment_amount',
+            'id_initial_deposit_amount',
+            'id_initial_payment_method',
+            'id_initial_deposit_method'
+        ];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            watchIds.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input',  update);
+                    el.addEventListener('change', update);
+                }
+            });
+            update();
+        });
+    })();
+    </script>
+
     {{ block.super }}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('rental_form');
+        if (!form) return;
+        document.querySelectorAll('.rp-actions button[type="submit"]').forEach(btn => {
+            btn.setAttribute('form', 'rental_form');
+        });
+    });
+    </script>
 {% endblock %}

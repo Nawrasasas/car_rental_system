@@ -2,16 +2,17 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
-from apps.accounting.models import JournalEntry
+from apps.accounting.models import JournalEntry, CurrencyCode
 from apps.rentals.models import Rental
 
 
 class DepositMethod(models.TextChoices):
     # طرق استلام مبلغ التأمين
     CASH = "cash", "Cash"
-    BANK = "bank", "Bank Transfer"
-    CARD = "card", "Card"
-    CHEQUE = "cheque", "Cheque"
+    BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+    VISA = "visa", "Visa"
+    MASTERCARD = "mastercard", "Mastercard"
+    POS = "pos", "POS / Card"
 
 
 class DepositStatus(models.TextChoices):
@@ -82,6 +83,32 @@ class Deposit(models.Model):
         blank=True,
         related_name="deposit_record",
         verbose_name="Journal Entry",
+    )
+
+    # العملة التي استُلم بها مبلغ التأمين
+    currency_code = models.CharField(
+        max_length=3,
+        choices=CurrencyCode.choices,
+        default=CurrencyCode.USD,
+        verbose_name="Currency",
+    )
+
+    # سعر الصرف وقت الاستلام (1 وحدة محلية = X دولار)
+    exchange_rate_to_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="Exchange Rate To USD",
+    )
+
+    # المبلغ المعادل بالدولار بعد التحويل (يُحسب تلقائيًا)
+    amount_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Amount USD",
     )
 
     # ملاحظات إضافية
@@ -161,37 +188,28 @@ class Deposit(models.Model):
         # الرصيد المتبقي من مبلغ التأمين بعد أي استردادات
         return self.amount - self.refunded_amount
 
-
     @property
     def calculated_status(self):
-        # --- حاشية عربية: الحالة المشتقة لم تعد تعتمد على أي Refund ---
-        # --- طالما لا يوجد قيد قبض فعلي فالسند Pending Collection ---
-        if not self.journal_entry_id:
-            return DepositStatus.PENDING_COLLECTION
+        # إذا تم رد كامل المبلغ
+        if self.remaining_amount <= 0 and self.refunded_amount > 0:
+            return DepositStatus.FULLY_REFUNDED
 
-        # --- بمجرد وجود قيد قبض فعلي نعتبر السند Received ---
-        return DepositStatus.RECEIVED
+        # إذا تم رد جزء من المبلغ
+        if self.refunded_amount > 0:
+            return DepositStatus.PARTIALLY_REFUNDED
 
+        # إذا وُجد قيد قبض = تم الاستلام
+        if self.journal_entry_id:
+            return DepositStatus.RECEIVED
 
-    @property
-    def calculated_status_display(self):
-        # --- حاشية عربية: العرض أصبح محصورًا بحالتين فقط ---
-        status_map = {
-            DepositStatus.PENDING_COLLECTION: "Pending Collection",
-            DepositStatus.RECEIVED: "Received",
-        }
-        return status_map.get(
-            self.calculated_status,
-            self.calculated_status.replace("_", " ").title(),
-        )
+        # لم يتم القبض بعد
+        return DepositStatus.PENDING_COLLECTION
 
     @property
     def calculated_status_display(self):
         status_map = {
             DepositStatus.PENDING_COLLECTION: "Pending Collection",
             DepositStatus.RECEIVED: "Received",
-            DepositStatus.PARTIALLY_REFUNDED: "Partially Refunded",
-            DepositStatus.FULLY_REFUNDED: "Fully Refunded",
         }
         return status_map.get(
             self.calculated_status,
@@ -203,9 +221,10 @@ class DepositRefund(models.Model):
     # طرق إعادة مبلغ التأمين
     class RefundMethod(models.TextChoices):
         CASH = "cash", "Cash"
-        BANK = "bank", "Bank Transfer"
-        CARD = "card", "Card"
-        CHEQUE = "cheque", "Cheque"
+        BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+        VISA = "visa", "Visa"
+        MASTERCARD = "mastercard", "Mastercard"
+        POS = "pos", "POS / Card"
 
     # سند التأمين الأصلي المرتبط بهذه الإعادة
     deposit = models.ForeignKey(

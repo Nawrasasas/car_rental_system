@@ -57,35 +57,3 @@ def vehicles_autocomplete(request):
     return JsonResponse(results, safe=False)
 
 
-# 3️⃣ نموذج إضافة عميل جديد
-class CustomerForm(forms.ModelForm):
-    class Meta:
-        model = Customer
-        fields = [
-            "full_name",
-            "phone",
-            "email",
-            "license_number",
-            "passport_number",
-            "nationality",
-            "address",
-        ]
-
-
-# 4️⃣ قائمة العملاء
-def customer_list(request):
-    customers = Customer.objects.all()
-    return render(request, "customers_list.html", {"customers": customers})
-
-
-# 5️⃣ دالة إضافة عميل
-def add_customer(request):
-    if request.method == "POST":
-        form = CustomerForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect("customer_list")
-    else:
-        form = CustomerForm()
-
-    return render(request, "add_customer.html", {"form": form})

@@ -3,7 +3,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import models, transaction
 from apps.rentals.models import Rental
-
+from apps.accounting.models import CurrencyCode
+from apps.exchange_rates.models import ExchangeRate
 from decimal import Decimal
 
 # موديل الدفعة/سند القبض.
@@ -17,8 +18,10 @@ class Payment(models.Model):
     # وسائل الدفع المتاحة في السند.
     PAYMENT_METHODS = (
         ("cash", "Cash"),
-        ("transfer", "Bank Transfer"),
-        ("card", "Card/POS"),
+        ("bank_transfer", "Bank Transfer"),
+        ("visa", "Visa"),
+        ("mastercard", "Mastercard"),
+        ("pos", "POS / Card"),
     )
 
     # حالات الترحيل المحاسبي للسند.
@@ -70,6 +73,48 @@ class Payment(models.Model):
         verbose_name="Amount",
     )
 
+    # =========================================================
+    # بيانات العملة الأصلية للدفعة
+    # =========================================================
+    # الموظف سيختار العملة فقط من الواجهة لاحقًا
+    # أما سعر الصرف والمبلغ بالدولار فسيتم احتسابهما في الخلفية
+
+    # العملة الأصلية التي دُفعت بها العملية
+    currency_code = models.CharField(
+        max_length=3,
+        choices=CurrencyCode.choices,
+        default=CurrencyCode.USD,
+        verbose_name="Currency",
+    )
+
+    # سعر الصرف المستخدم لتحويل الدفعة إلى الدولار
+    # يبقى مخزنًا وثابتًا للتاريخ والتقارير بعد الحفظ/الترحيل
+    exchange_rate_to_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="Exchange Rate To USD",
+    )
+
+    # تاريخ سعر الصرف المعتمد لهذه الدفعة
+    # افتراضيًا سنربطه بتاريخ الدفعة نفسه
+    exchange_rate_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Exchange Rate Date",
+    )
+
+    # المبلغ المحفوظ بالدولار بعد التحويل
+    # هذا هو الرقم الذي سنعتمد عليه لاحقًا في الترحيل والتقارير
+    amount_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Amount USD",
+    )
+
     # وسيلة الدفع المستخدمة.
     method = models.CharField(
         max_length=20,
@@ -112,6 +157,29 @@ class Payment(models.Model):
 
     def clean(self):
         errors = {}
+        # =====================================================
+        # منع ربط الدفعة بعقد غير نشط
+        # =====================================================
+        rental_status = None
+        rental_total = Decimal("0.00")
+
+        if self.rental_id:
+            rental_data = (
+                Rental.objects.filter(pk=self.rental_id)
+                .values("status", "net_total")
+                .first()
+            )
+
+            if rental_data:
+                rental_status = rental_data.get("status")
+                rental_total = rental_data.get("net_total") or Decimal("0.00")
+
+                # في نظامنا الحالي:
+                # لا نسمح بإنشاء دفعة على عقد مكتمل أو ملغي
+                if rental_status in ("cancelled",):
+                    errors["rental"] = (
+                        "Cannot create a payment for a cancelled rental."
+                    )
 
         # يجب ربط الدفعة بعقد
         if not self.rental_id:
@@ -131,11 +199,9 @@ class Payment(models.Model):
             and getattr(self, "amount_paid", None) is not None
             and self.amount_paid > Decimal("0.00")
         ):
-            rental_total = (
-                Rental.objects.filter(pk=self.rental_id)
-                .values_list("net_total", flat=True)
-                .first()
-            ) or Decimal("0.00")
+            # نستخدم القيمة التي قرأناها مسبقًا من العقد
+            # بدل تنفيذ استعلام ثانٍ
+            rental_total = rental_total or Decimal("0.00")
 
             previous_total = (
                 self.__class__.objects.filter(rental_id=self.rental_id)
@@ -155,17 +221,99 @@ class Payment(models.Model):
                     f"Payment exceeds contract total. "
                     f"Allowed remaining amount is {remaining_allowed}."
                 )
+                # =====================================================
+        if self.currency_code == CurrencyCode.USD:
+            if self.exchange_rate_to_usd is not None and Decimal(
+                self.exchange_rate_to_usd
+            ) != Decimal("1"):
+                errors["exchange_rate_to_usd"] = "USD payments must use exchange rate 1."
+
+        # إذا وُجد Snapshot محفوظ نتأكد فقط أنه موجب
+        if self.exchange_rate_to_usd is not None and Decimal(
+            self.exchange_rate_to_usd
+        ) <= Decimal("0.00"):
+            errors["exchange_rate_to_usd"] = "Exchange rate must be greater than zero."
+
+        if self.amount_usd is not None and Decimal(self.amount_usd) < Decimal("0.00"):
+            errors["amount_usd"] = "Amount USD cannot be negative."
 
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
-            # نقفل العقد لحماية المنع من تجاوز السقف عند الحفظ المتزامن
+            # =====================================================
+            # قفل العقد لحماية التزامن عند الحفظ
+            # =====================================================
             if self.rental_id:
                 Rental.objects.select_for_update().only("id").get(pk=self.rental_id)
 
+            # =====================================================
+            # تثبيت تاريخ الدفعة وتاريخ سعر الصرف
+            # =====================================================
+            if not self.payment_date:
+                self.payment_date = timezone.localdate()
+
+            if not self.exchange_rate_date:
+                self.exchange_rate_date = self.payment_date
+
+            currency_code = (self.currency_code or CurrencyCode.USD).upper()
+
+            # =====================================================
+            # Snapshot العملة يُحسب تلقائيًا من Exchange Rates
+            # =====================================================
+            if currency_code == CurrencyCode.USD:
+                # الدولار هو العملة الأساسية
+                self.exchange_rate_to_usd = Decimal("1")
+
+                if self.amount_paid is not None:
+                    self.amount_usd = Decimal(self.amount_paid).quantize(
+                        Decimal("0.01")
+                    )
+            else:
+                # نجلب أحدث سعر صالح في تاريخ الدفعة أو قبله
+                rate_obj = (
+                    ExchangeRate.objects.filter(
+                        currency_code=currency_code,
+                        effective_date__lte=self.exchange_rate_date,
+                    )
+                    .order_by("-effective_date")
+                    .first()
+                )
+
+                if not rate_obj:
+                    raise ValidationError(
+                        {
+                            "currency_code": (
+                                f"No exchange rate found for {currency_code} "
+                                f"on or before {self.exchange_rate_date}."
+                            )
+                        }
+                    )
+
+                units_per_usd = Decimal(rate_obj.units_per_usd or 0)
+
+                if units_per_usd <= Decimal("0.00"):
+                    raise ValidationError(
+                        {"currency_code": "Units per USD must be greater than zero."}
+                    )
+
+                # نحفظ الـ snapshot المرجعي للعرض والتقارير
+                self.exchange_rate_to_usd = rate_obj.rate_to_usd
+
+                # =================================================
+                # الحساب الصحيح للمبلغ المرحّل بالدولار
+                # لا نعتمد على الضرب في snapshot المقرب
+                # بل نقسم على units_per_usd مباشرةً لتفادي خطأ 600.30
+                # =================================================
+                if self.amount_paid is not None:
+                    self.amount_usd = (
+                        Decimal(self.amount_paid) / units_per_usd
+                    ).quantize(Decimal("0.01"))
+
+            # =====================================================
             # توليد المرجع تلقائيًا عند أول حفظ فقط
+            # =====================================================
             if not self.reference:
                 from apps.accounting.services import generate_payment_reference
 
@@ -173,91 +321,79 @@ class Payment(models.Model):
                     payment_date=self.payment_date
                 )
 
-            # نطبق كل تحقق الموديل قبل أي حفظ فعلي
+            # =====================================================
+            # تحقق الموديل بعد تجهيز snapshot العملة
+            # =====================================================
             self.full_clean()
 
             return super().save(*args, **kwargs)
 
-    def delete(self, *args, **kwargs):
-        # --- منع حذف السند إذا كان مرحلًا أو مرتبطًا بقيد ---
-        if self.accounting_state == "posted" or self.journal_entry_id:
-            raise ValidationError("Posted payments cannot be deleted.")
+    @property
+    def refunded_total(self):
+        refund = getattr(self, "refund_record", None)
+        if refund and refund.journal_entry_id:
+            return Decimal(refund.amount or 0)
+        return Decimal("0.00")
 
-        # --- إذا لم يكن مرحلًا نسمح بالحذف الطبيعي ---
-        return super().delete(*args, **kwargs)
+    @property
+    def net_amount_after_refund(self):
+        return Decimal(self.amount_paid or 0) - self.refunded_total
+
+    @property
+    def is_fully_refunded(self):
+        return self.refunded_total >= Decimal(self.amount_paid or 0)
 
 
-class DepositRefund(models.Model):
-    """
-    هذا الموديل يمثل حركة إرجاع التأمين للعميل.
-    يمكن أن يكون الإرجاع كامل أو جزئي.
-    """
-
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("partial", "Partially Refunded"),
-        ("refunded", "Refunded"),
-        ("withheld", "Withheld"),
-    ]
-
-    # --- ربط مع العقد ---
-    rental = models.ForeignKey(
-        "rentals.Rental",
-        on_delete=models.CASCADE,
-        related_name="deposit_refunds",
-        verbose_name="Rental",
+# موديل استرداد الدفعة (مرتبط بسند القبض الأصلي بعلاقة واحد لواحد).
+class PaymentRefund(models.Model):
+    # سند القبض الأصلي المرتبط بهذا الاسترداد.
+    payment = models.OneToOneField(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="refund_record",
+        verbose_name="Original Payment",
     )
 
-    # --- مبلغ الإرجاع ---
+    # مبلغ الاسترداد.
     amount = models.DecimalField(
-        max_digits=10, decimal_places=2, verbose_name="Refund Amount"
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Refund Amount",
     )
 
-    # --- حالة الإرجاع ---
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="pending", verbose_name="Status"
+    # تاريخ الاسترداد.
+    refund_date = models.DateField(
+        default=timezone.localdate,
+        verbose_name="Refund Date",
     )
 
-    # --- تاريخ الإرجاع ---
-    refund_date = models.DateTimeField(auto_now_add=True, verbose_name="Refund Date")
-
-    # --- طريقة الإرجاع ---
-    method = models.CharField(
-        max_length=50,
-        choices=[
-            ("cash", "Cash"),
-            ("bank", "Bank Transfer"),
-        ],
-        default="cash",
-        verbose_name="Method",
+    # ملاحظات إضافية.
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Refund Notes",
     )
+
+    # القيد المحاسبي الناتج عن الاسترداد.
     journal_entry = models.OneToOneField(
         "accounting.JournalEntry",
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
-        on_delete=models.PROTECT,
-        verbose_name="Journal Entry",
+        related_name="payment_refund_record",
+        verbose_name="Refund Journal Entry",
     )
-    # --- ملاحظات ---
-    notes = models.TextField(blank=True, verbose_name="Notes")
 
-    # --- بيانات النظام ---
-    created_at = models.DateTimeField(auto_now_add=True)
+    # تاريخ إنشاء السجل.
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Created At",
+    )
 
-    def clean(self):
-        errors = {}
+    class Meta:
+        verbose_name = "Payment Refund"
+        verbose_name_plural = "Payment Refunds"
+        ordering = ["-created_at"]
 
-        # التحقق من المبلغ
-        if self.amount is None or self.amount <= Decimal("0.00"):
-            errors["amount"] = "Refund amount must be strictly positive."
-
-        # التحقق من طريقة الدفع
-        if not self.method:
-            errors["method"] = "Payment method must be specified for a refund."
-
-        # إذا كان هناك أي أخطاء، نرفعها دفعة واحدة لترتبط بالحقول
-        if errors:
-            raise ValidationError(errors)
-            
     def __str__(self):
-        return f"Refund #{self.id} - {self.rental}"
+        return f"Refund {self.amount} for {self.payment}"

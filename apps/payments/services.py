@@ -2,62 +2,8 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from decimal import Decimal
-# --- استيراد موديل الدفعات لأننا سنضيف له خدمة مركزية مثل DepositRefund ---
-from .models import DepositRefund, Payment
 
-# --- استيراد خدمة الترحيل المحاسبي الخاصة بسندات القبض ---
-from apps.accounting.services import post_payment_receipt
-
-
-@transaction.atomic
-def process_deposit_refund(refund_instance: DepositRefund, is_creation: bool = True):
-    """
-    خدمة مركزية لمعالجة إرجاع التأمين.
-    تقوم بالتحقق، قفل السجلات، الحفظ، ومنع تجاوز مبلغ التأمين.
-    """
-    # --- التحقق المبدئي من صحة الحقول ---
-    refund_instance.full_clean()
-
-    # --- قفل العقد لمنع السباقات على مبلغ التأمين ---
-    locked_rental = (
-        type(refund_instance.rental)
-        .objects.select_for_update()
-        .get(pk=refund_instance.rental_id)
-    )
-
-    old_amount = Decimal("0.00")
-
-    # --- في حالة التعديل: نقرأ السجل القديم أولًا ونمنع تعديل السجل المرحّل قبل أي حفظ ---
-    if not is_creation and refund_instance.pk:
-        old_refund = DepositRefund.objects.select_for_update().get(pk=refund_instance.pk)
-
-        # --- لا نسمح بتعديل Refund مرحّل ---
-        if old_refund.journal_entry_id:
-            raise ValidationError("Posted deposit refunds cannot be edited.")
-
-        old_amount = old_refund.amount or Decimal("0.00")
-
-    # --- مجموع كل الاستردادات الحالية لنفس العقد ---
-    total_refunded = (
-        DepositRefund.objects.filter(rental_id=refund_instance.rental_id)
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-
-    # --- عند التعديل نطرح القيمة القديمة ثم نضيف الجديدة ---
-    new_total = total_refunded - old_amount + (refund_instance.amount or Decimal("0.00"))
-
-    # --- منع تجاوز مبلغ التأمين الأصلي للعقد ---
-    deposit_amount = locked_rental.deposit_amount or Decimal("0.00")
-    if new_total > deposit_amount:
-        raise ValidationError(
-            {"amount": f"Refund exceeds total deposit amount ({deposit_amount})."}
-        )
-
-    # --- بعد نجاح كل الفحوصات نحفظ السجل ---
-    refund_instance.save()
-
-    return refund_instance
+from .models import Payment
 
 
 @transaction.atomic
@@ -112,14 +58,12 @@ def process_payment(payment_instance: Payment, is_creation: bool = True):
         )
 
     # --- الحفظ الفعلي للسند ---
+    # --- الحفظ الفعلي للسند ---
     payment_instance.save()
 
-    # --- الترحيل المحاسبي يتم مرة واحدة فقط
-    # --- وإذا كانت الحالة مكتملة ولم يكن هناك قيد مرتبط بعد ---
-    if payment_instance.status == "completed" and not payment_instance.journal_entry_id:
-        post_payment_receipt(payment=payment_instance)
+    # --- الترحيل المحاسبي ---
+    from apps.accounting.services import post_payment_receipt
 
-        # --- نعيد تحميل الكائن حتى تظهر حالة القيد والـ journal_entry المحدثة ---
-        payment_instance.refresh_from_db()
+    post_payment_receipt(payment=payment_instance)
 
     return payment_instance

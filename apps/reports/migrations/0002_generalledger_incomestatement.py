@@ -6,30 +6,46 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reports', '0001_initial'),
+        ("reports", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='GeneralLedger',
+            name="GeneralLedger",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'General Ledger',
-                'verbose_name_plural': '📖 General Ledger',
-                'managed': False,
+                "verbose_name": "General Ledger",
+                "verbose_name_plural": "📖 General Ledger",
+                "managed": False,
             },
         ),
         migrations.CreateModel(
-            name='IncomeStatement',
+            name="IncomeStatement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Income Statement',
-                'verbose_name_plural': '📊 Income Statement',
-                'managed': False,
+                "verbose_name": "Income Statement",
+                "verbose_name_plural": "📊 Income Statement",
+                "managed": False,
             },
         ),
     ]

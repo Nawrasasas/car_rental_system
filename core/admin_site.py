@@ -37,6 +37,7 @@ class MyAdminSite(AdminSite):
         payments_app = None
         deposits_app = None
         traffic_fines_app = None
+        exchange_rates_app = None
 
         for app in app_list:
             if app["app_label"] == "accounting":
@@ -49,6 +50,8 @@ class MyAdminSite(AdminSite):
                 deposits_app = app
             elif app["app_label"] == "traffic_fines":
                 traffic_fines_app = app
+            elif app["app_label"] == "exchange_rates":
+                exchange_rates_app = app
 
         if accounting_app:
             merged_models = accounting_app["models"][:]
@@ -61,12 +64,16 @@ class MyAdminSite(AdminSite):
                 merged_models.extend(payments_app["models"])
             if deposits_app:
                 merged_models.extend(deposits_app["models"])
+            # أسعار الصرف تظهر ضمن قسم المحاسبة
+            if exchange_rates_app:
+                merged_models.extend(exchange_rates_app["models"])
 
             desired_model_order = [
                 "Chart of Accounts",
                 "Journal Entries",
                 "Revenues",
                 "Expenses",
+                "Exchange Rates",
                 "Payments",
                 "Invoices",
                 "Deposits",
@@ -87,7 +94,10 @@ class MyAdminSite(AdminSite):
             app_list = [
                 app
                 for app in app_list
-                if app["app_label"] not in ["invoices", "payments", "deposits", "traffic_fines"]
+                if app["app_label"] not in [
+                    "invoices", "payments", "deposits",
+                    "traffic_fines", "exchange_rates",
+                ]
             ]
 
         desired_app_order = [

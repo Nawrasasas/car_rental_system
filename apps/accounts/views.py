@@ -13,9 +13,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 
-def home(request):
-    # --- حاشية: هذه الصفحة القديمة تبقى كما هي ---
-    return render(request, "accounts/home.html")
+
 
 
 @api_view(["POST"])

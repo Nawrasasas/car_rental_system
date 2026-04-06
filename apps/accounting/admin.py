@@ -18,7 +18,7 @@ from core.admin_site import custom_admin_site
 from .resources import AccountResource
 from .services import post_expense, post_revenue
 from apps.attachments.inlines import AttachmentInline
-
+from django.http import JsonResponse
 
 from .models import (
     Account,
@@ -81,35 +81,106 @@ class JournalItemInlineFormSet(BaseInlineFormSet):
 
 # هذا الـ inline مسؤول عن أسطر القيود داخل شاشة القيد الرئيسي.
 class JournalItemInline(admin.TabularInline):
-    # ربط الـ inline بموديل عناصر القيد.
     model = JournalItem
     formset = JournalItemInlineFormSet
-    # لا نضيف أسطر وهمية افتراضيًا.
     extra = 0
-    # الحقول الظاهرة داخل الصف.
-    fields = ("account", "description", "debit", "credit")
-    # تفعيل البحث التلقائي للحسابات.
+
+    # =====================================================
+    # نضيف العملة الأصلية والمبلغ الأصلي قبل debit / credit
+    # =====================================================
+    # أضفنا العملة والمبلغ الأصلي قبل debit/credit
+    # المستخدم يختار العملة ويدخل المبلغ الأصلي
+    # النظام يحسب debit/credit بالدولار تلقائيًا عند الحفظ
+    fields = (
+        "account",
+        "description",
+        "vehicle",
+        "branch",
+        "original_currency_code",
+        "original_amount",
+        "debit",
+        "credit",
+    )
+
     autocomplete_fields = ("account",)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "vehicle":
+            from apps.vehicles.models import Vehicle
+
+            kwargs["queryset"] = Vehicle.objects.order_by("plate_number")
+            kwargs["empty_label"] = "— No Vehicle —"
+
+        if db_field.name == "branch":
+            from apps.branches.models import Branch
+
+            kwargs["queryset"] = Branch.objects.order_by("name")
+            kwargs["empty_label"] = "— No Branch —"
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_fields(self, request, obj=None):
+        # نفس ترتيب fields أعلاه مع إضافة العملة والمبلغ الأصلي
+        return (
+                "account",
+                "description",
+                "vehicle",
+                "branch",
+                "original_currency_code",
+                "original_amount",
+                "debit",
+                "credit",
+            )
+
+    # =====================================================
+    # عرض العملة الأصلية من رأس القيد
+    # =====================================================
+    def original_currency_display(self, obj=None):
+        if obj and obj.journal_entry_id and obj.journal_entry.original_currency_code:
+            return obj.journal_entry.original_currency_code
+        return "-"
+
+    original_currency_display.short_description = "Original Currency"
+
+    # =====================================================
+    # عرض المبلغ الأصلي من رأس القيد
+    # =====================================================
+    def original_amount_display(self, obj=None):
+        if (
+            obj
+            and obj.journal_entry_id
+            and obj.journal_entry.original_amount is not None
+        ):
+            currency_code = obj.journal_entry.original_currency_code or ""
+            return f"{obj.journal_entry.original_amount} {currency_code}".strip()
+        return "-"
+
+    original_amount_display.short_description = "Original Amount"
+
     def has_add_permission(self, request, obj=None):
-        # إذا كان القيد مرحلًا فلا نسمح بإضافة أسطر جديدة.
         if obj and obj.state == EntryState.POSTED:
             return False
-        # خلاف ذلك نرجع إلى سلوك Django الافتراضي.
         return super().has_add_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        # إذا كان القيد مرحلًا فلا نسمح بحذف أسطره.
         if obj and obj.state == EntryState.POSTED:
             return False
-        # خلاف ذلك نرجع إلى سلوك Django الافتراضي.
         return super().has_delete_permission(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
-        # بعد الترحيل تصبح كل حقول السطر للقراءة فقط.
+        # بعد الترحيل تُقفل جميع الحقول للقراءة فقط
         if obj and obj.state == EntryState.POSTED:
-            return ("account", "description", "debit", "credit")
-        # قبل الترحيل تبقى قابلة للتحرير.
+            return (
+                "account",
+                "description",
+                "vehicle",
+                "branch",
+                "original_currency_code",
+                "original_amount",
+                "debit",
+                "credit",
+            )
+        # في Draft: debit و credit قابلة للتعديل حتى يملأها JS تلقائيًا
         return ()
 
 
@@ -187,18 +258,21 @@ class JournalEntryAdmin(admin.ModelAdmin):
         "source_app",
         "source_model",
         "source_id",
+        # =====================================================
+        # بيانات أصل العملية - للعرض فقط
+        # =====================================================
+        "original_currency_code",
+        "original_amount",
+        "exchange_rate_to_usd",
     )
-
     # تقسيم الحقول داخل شاشة القيد.
     fieldsets = (
         (
             "Journal Entry",
             {
                 "fields": (
-                    "entry_no",
-                    "entry_date",
-                    "description",
-                    "state",
+                    "entry_no",      "entry_date",
+                    "description",   "state",
                     "posted_at",
                 )
             },
@@ -214,21 +288,29 @@ class JournalEntryAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Original Transaction",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "original_currency_code", "original_amount",
+                    "exchange_rate_to_usd",   "exchange_rate_date",
+                    "posted_amount_usd",
+                )
+            },
+        ),
+        (
             "Source Reference",
             {
+                "classes": ("collapse",),
                 "fields": (
-                    "source_app",
-                    "source_model",
+                    "source_app",   "source_model",
                     "source_id",
                 )
             },
         ),
     )
 
-    # الإجراء الجماعي لترحيل القيود.
-    # الإجراء الجماعي لترحيل القيود.
     actions = ("post_selected_entries",)
-
     # --- حاشية: قالب مخصص لإظهار فلتر التاريخ أعلى صفحة القيود مثل العقود ---
     change_list_template = "admin/accounting/journalentry/change_list.html"
 
@@ -386,6 +468,53 @@ class JournalEntryAdmin(admin.ModelAdmin):
         # --- حاشية: الحفظ الطبيعي لبقية الحقول ---
         super().save_model(request, obj, form, change)
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            # رابط API يستخدمه JS لجلب سعر الصرف حسب العملة والتاريخ
+            path(
+                "api/exchange-rate/",
+                self.admin_site.admin_view(self.exchange_rate_api_view),
+                name="accounting_journalentry_exchange_rate_api",
+            ),
+        ]
+        return custom_urls + urls
+
+    def exchange_rate_api_view(self, request):
+        """
+        يُرجع سعر الصرف لعملة معينة في تاريخ معين بصيغة JSON.
+        يُستخدم من ملف journal_item_currency.js فقط.
+        مثال: /custom-admin/accounting/journalentry/api/exchange-rate/?currency=IQD&date=2026-04-05
+        """
+        from apps.exchange_rates.services import (
+            get_exchange_rate,
+            ExchangeRateNotFound,
+        )
+        from django.utils.dateparse import parse_date as django_parse_date
+
+        # قراءة المعاملات من الرابط
+        currency = (request.GET.get("currency") or "USD").upper().strip()
+        date_str = (request.GET.get("date") or "").strip()
+
+        # تحويل التاريخ من نص إلى كائن date
+        date = django_parse_date(date_str) if date_str else None
+
+        try:
+            # جلب السعر من تطبيق exchange_rates
+            # المعنى: كم دولار يساوي 1 وحدة من العملة المطلوبة
+            rate = get_exchange_rate(currency_code=currency, date=date)
+            return JsonResponse({
+                "rate": str(rate),
+                "currency": currency,
+                "date": date_str,
+            })
+        except ExchangeRateNotFound as e:
+            # لا يوجد سعر لهذه العملة في هذا التاريخ
+            return JsonResponse(
+                {"rate": None, "error": str(e)},
+                status=404,
+            )
+
     @admin.action(description="Post selected journal entries")
     def post_selected_entries(self, request, queryset):
         # عداد للقيود التي تم ترحيلها بنجاح.
@@ -416,17 +545,14 @@ class JournalEntryAdmin(admin.ModelAdmin):
                 f"{posted_count} journal entr{'y' if posted_count == 1 else 'ies'} posted successfully.",
                 level=messages.SUCCESS,
             )
-    class Media:
-        css = {
-            "all": (
-                "css/attachment_gallery_inline.css",
-                
-            )
-        }
 
+    class Media:
+        css = {"all": ("css/attachment_gallery_inline.css",)}
         js = (
             "js/attachment_gallery_inline.js",
-        )       
+            # ملف JS الجديد لحساب سعر الصرف وملء debit/credit تلقائيًا
+            "admin/js/journal_item_currency.js",
+        )
 
 
 class ExpenseResource(resources.ModelResource):

@@ -4,7 +4,7 @@
    CSS Variables
    ========================================= */
 :root {
-    --app-bg: #eef3f8;
+    --app-bg: #ebeef0;
     --surface: #ffffff;
     --surface-soft: #f7fafc;
     --surface-soft-2: #f2f6fb;
@@ -81,9 +81,10 @@ input, select, textarea, button {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
+
 html,
 body {
-    background: var(--app-bg) !important;
+    background: #ffffff !important;
     color: var(--text) !important;
 }
 
@@ -1431,4 +1432,547 @@ body.app-vehicles.model-vehicle.change-list #changelist-form .results::-webkit-s
     .module table {
         box-shadow: none !important;
     }
+}
+/* =========================================
+   Rentals — change form grid layout
+   ========================================= */
+
+body.app-rentals.model-rental.change-form #content-main {
+    max-width: 100% !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: .45rem .8rem !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1rem 1rem .85rem !important;
+    box-shadow: var(--shadow-sm) !important;
+    margin-bottom: .6rem !important;
+    overflow: visible !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row > fieldset {
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned legend {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: var(--muted) !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    padding: 0 !important;
+    margin: 0 0 3px !important;
+    float: none !important;
+    width: 100% !important;
+    line-height: 1 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .flex-container > label:first-child {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: var(--muted) !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    margin: 0 0 3px !important;
+    line-height: 1 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .flex-container:not(.checkbox-row) {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="text"],
+body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="number"],
+body.app-rentals.model-rental.change-form fieldset.module.aligned select {
+    width: 100% !important;
+    height: 28px !important;
+    font-size: 12px !important;
+    padding: 0 7px !important;
+    border: 1px solid #c8d4e0 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    box-sizing: border-box !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.04) !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned textarea {
+    width: 100% !important;
+    height: 54px !important;
+    font-size: 12px !important;
+    padding: 5px 7px !important;
+    border: 1px solid #c8d4e0 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    box-sizing: border-box !important;
+    resize: none !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned input:focus,
+body.app-rentals.model-rental.change-form fieldset.module.aligned select:focus,
+body.app-rentals.model-rental.change-form fieldset.module.aligned textarea:focus {
+    outline: none !important;
+    border-color: var(--blue) !important;
+    box-shadow: 0 0 0 2px rgba(37,99,235,.12) !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .readonly {
+    font-size: 12px !important;
+    color: var(--text-soft) !important;
+    background: var(--surface-soft-2) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 6px !important;
+    padding: 0 7px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .related-widget-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    min-width: 0 !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned .related-widget-wrapper select {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: 0 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned p.datetime {
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned p.datetime label {
+    font-size: 9px !important;
+    color: var(--muted-2) !important;
+    text-transform: uppercase !important;
+    letter-spacing: .04em !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned .vDateField,
+body.app-rentals.model-rental.change-form fieldset.module.aligned .vTimeField {
+    width: 100px !important;
+    display: inline-block !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .checkbox-row {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding-top: 16px !important;
+    min-height: 28px !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned .checkbox-row input[type="checkbox"] {
+    width: 15px !important;
+    height: 15px !important;
+    flex-shrink: 0 !important;
+    border: 1px solid #c8d4e0 !important;
+    background: #fff !important;
+    cursor: pointer !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned .vCheckboxLabel {
+    font-size: 12px !important;
+    color: var(--text) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row.field-contract_notes {
+    grid-column: span 2 !important;
+}
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row.field-start_date,
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row.field-end_date {
+    grid-column: span 2 !important;
+}
+
+.live-payment-summary-box,
+.rental-payment-summary {
+    display: none !important;
+}
+
+body.app-rentals.model-rental.change-form .submit-row {
+    border-radius: var(--radius-md) !important;
+    padding: .65rem 1rem !important;
+    margin-top: .4rem !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="text"],
+    body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="number"],
+    body.app-rentals.model-rental.change-form fieldset.module.aligned select,
+    body.app-rentals.model-rental.change-form fieldset.module.aligned textarea {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #e5eefb !important;
+    }
+    body.app-rentals.model-rental.change-form fieldset.module.aligned .checkbox-row input[type="checkbox"] {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+    }
+}
+body.app-rentals.model-rental.change-form #content {
+    background: #ffffff !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned {
+    background: #ffffff !important;
+    border: 1px solid #c2d3e3 !important;
+    box-shadow: 0 2px 12px rgba(15,23,42,.08) !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="text"],
+body.app-rentals.model-rental.change-form fieldset.module.aligned input[type="number"],
+body.app-rentals.model-rental.change-form fieldset.module.aligned select,
+body.app-rentals.model-rental.change-form fieldset.module.aligned textarea {
+    background: #ffffff !important;
+    border: 1px solid #a8bdd0 !important;
+    box-shadow: inset 0 1px 3px rgba(15,23,42,.06) !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned input:focus,
+body.app-rentals.model-rental.change-form fieldset.module.aligned select:focus,
+body.app-rentals.model-rental.change-form fieldset.module.aligned textarea:focus {
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12) !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .readonly {
+    background: #edf2f7 !important;
+    border: 1px solid #c2d3e3 !important;
+    color: #3d5a7a !important;
+    font-weight: 500 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned legend,
+body.app-rentals.model-rental.change-form fieldset.module.aligned .flex-container > label:first-child {
+    color: #3d5a7a !important;
+    font-weight: 700 !important;
+}
+
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row.field-start_date,
+body.app-rentals.model-rental.change-form fieldset.module.aligned .form-row.field-end_date {
+    grid-column: span 2 !important;
+}
+/* =========================================
+   Accounting — Journal Entry form
+   ========================================= */
+
+body.app-accounting.model-journalentry.change-form #content {
+    background: #d6e2ef !important;
+}
+
+/* نجعل الفورم flex لنتحكم بالترتيب */
+body.app-accounting.model-journalentry.change-form #content-main > form > div {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* items inline يصعد للأعلى بعد أول fieldset */
+body.app-accounting.model-journalentry.change-form #items-group {
+    order: 2 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned:first-of-type {
+    order: 1 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned {
+    order: 3 !important;
+}
+
+body.app-accounting.model-journalentry.change-form .inline-group:not(#items-group) {
+    order: 4 !important;
+}
+
+body.app-accounting.model-journalentry.change-form .submit-row {
+    order: 99 !important;
+}
+
+/* ── Header fieldset grid ── */
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: .45rem .8rem !important;
+    background: #ffffff !important;
+    border: 1px solid #c2d3e3 !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1rem !important;
+    box-shadow: 0 2px 8px rgba(15,23,42,.06) !important;
+    margin-bottom: .6rem !important;
+    overflow: visible !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .fieldset-heading {
+    grid-column: 1 / -1 !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #3d5a7a !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    margin: 0 0 .4rem !important;
+    padding-bottom: .4rem !important;
+    border-bottom: 1px solid #d0dcea !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .form-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .flex-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .flex-container > label:first-child {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #3d5a7a !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    margin: 0 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned input[type="text"],
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned select {
+    width: 100% !important;
+    height: 28px !important;
+    font-size: 12px !important;
+    padding: 0 7px !important;
+    border: 1px solid #a8bdd0 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    box-sizing: border-box !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .readonly {
+    font-size: 12px !important;
+    color: #3d5a7a !important;
+    background: #edf2f7 !important;
+    border: 1px solid #c2d3e3 !important;
+    border-radius: 6px !important;
+    padding: 0 7px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-weight: 500 !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned .vDateField {
+    width: 110px !important;
+    height: 28px !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.aligned p.date {
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+/* ── Items inline — Odoo style ── */
+body.app-accounting.model-journalentry.change-form #items-group {
+    background: #ffffff !important;
+    border: 1px solid #c2d3e3 !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1rem !important;
+    box-shadow: 0 2px 8px rgba(15,23,42,.06) !important;
+    margin-bottom: .6rem !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group h2 {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #3d5a7a !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    margin: 0 0 .75rem !important;
+    padding-bottom: .4rem !important;
+    border-bottom: 1px solid #d0dcea !important;
+    background: transparent !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group thead tr {
+    background: transparent !important;
+    border-bottom: 2px solid #e2eaf4 !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group thead th {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #3d5a7a !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    padding: 0 8px 8px !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody tr {
+    border-bottom: 1px solid #f0f4f8 !important;
+    background: transparent !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody tr:hover {
+    background: #f7fafc !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody td {
+    padding: 4px 6px !important;
+    border: none !important;
+    vertical-align: middle !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody td input,
+body.app-accounting.model-journalentry.change-form #items-group tbody td select {
+    height: 26px !important;
+    font-size: 12px !important;
+    padding: 0 6px !important;
+    border: 1px solid #c2d3e3 !important;
+    border-radius: 5px !important;
+    background: #f7fafc !important;
+    width: 100% !important;
+    color: var(--text) !important;
+    box-sizing: border-box !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody td input:focus,
+body.app-accounting.model-journalentry.change-form #items-group tbody td select:focus {
+    background: #b8ecbd !important;
+    border-color: #2563eb !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(37,99,235,.1) !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group tbody td input[type="number"] {
+    text-align: right !important;
+}
+
+/* add line button */
+body.app-accounting.model-journalentry.change-form #items-group .add-row a {
+    font-size: 12px !important;
+    color: #2563eb !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group .add-row a:hover {
+    background: #ffffff !important;
+}
+
+body.app-accounting.model-journalentry.change-form .submit-row {
+    border-radius: var(--radius-md) !important;
+    padding: .65rem 1rem !important;
+    margin-top: .4rem !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group .related-widget-wrapper-link {
+    display: none !important;
+}
+body.app-accounting.model-journalentry.change-form #items-group .related-widget-wrapper select {
+    width: 100% !important;
+}
+body.app-accounting.model-journalentry.change-form #items-group .column-account {
+    width: 28% !important;
+    min-width: 220px !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group .field-account {
+    min-width: 220px !important;
+}
+
+body.app-accounting.model-journalentry.change-form #items-group .field-account select,
+body.app-accounting.model-journalentry.change-form #items-group .field-account .select2-container {
+    min-width: 220px !important;
+    width: 100% !important;
+}
+body.app-accounting.model-journalentry.change-form fieldset.module > h2,
+body.app-accounting.model-journalentry.change-form fieldset.module .inline-heading {
+    background: transparent !important;
+    color: #0820d6 !important;
+    border-bottom: 1px solid #a3dcac !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    padding: .5rem .75rem !important;
+}
+body.app-accounting.model-journalentry.change-form fieldset.module.collapsed > h2,
+body.app-accounting.model-journalentry.change-form fieldset.module.collapse > h2 {
+    background: #edf2f7 !important;
+    color: #3d5a7a !important;
+    border: 1px solid #c2d3e3 !important;
+    border-radius: var(--radius-md) !important;
+}
+body.app-accounting.model-journalentry.change-form fieldset.module.collapse summary,
+body.app-accounting.model-journalentry.change-form fieldset.module.collapse summary h2 {
+    background: #edf2f7 !important;
+    color: #3d5a7a !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    padding: .5rem .75rem !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    cursor: pointer !important;
+    list-style: none !important;
+}
+
+body.app-accounting.model-journalentry.change-form fieldset.module.collapse {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    display: block !important;
 }

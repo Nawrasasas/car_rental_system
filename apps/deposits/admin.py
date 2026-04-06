@@ -79,6 +79,42 @@ class DepositCollectionStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
+class DepositHasRemainingFilter(admin.SimpleListFilter):
+    title = "Remaining Balance"
+    parameter_name = "has_remaining"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("yes", "Has Remaining Balance"),
+            ("no", "Fully Refunded"),
+        )
+
+    def queryset(self, request, queryset):
+        from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+        from django.db.models.functions import Coalesce
+
+        qs = queryset.annotate(
+            total_refunded=Coalesce(
+                Sum("refunds__amount"),
+                0,
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        ).annotate(
+            remaining=ExpressionWrapper(
+                F("amount") - F("total_refunded"),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+
+        if self.value() == "yes":
+            return qs.filter(remaining__gt=0)
+
+        if self.value() == "no":
+            return qs.filter(remaining__lte=0)
+
+        return queryset
+
+
 class DepositAdmin(admin.ModelAdmin):
     # الأعمدة الظاهرة في قائمة التأمينات
     list_display = (
@@ -97,6 +133,7 @@ class DepositAdmin(admin.ModelAdmin):
     # الفلاتر الجانبية
     list_filter = (
         DepositCollectionStatusFilter,
+        DepositHasRemainingFilter,
         "method",
         "deposit_date",
         "created_at",
@@ -172,21 +209,18 @@ class DepositAdmin(admin.ModelAdmin):
         # --- لا نعتمد على الحقل المخزن status لأنه لم يعد مصدر الحقيقة ---
         derived_status = obj.calculated_status
 
-        if derived_status == DepositStatus.RECEIVED:
-            return format_html(
-                "{}",
-                '<span style="background:#16a34a; color:white; padding:3px 10px; '
-                'border-radius:20px; font-size:10px; font-weight:bold;">'
-                "Received"
-                "</span>",
-            )
-
+        color_map = {
+            DepositStatus.RECEIVED: ("#16a34a", "Received"),
+            DepositStatus.FULLY_REFUNDED: ("#6b7280", "Fully Refunded"),
+            DepositStatus.PARTIALLY_REFUNDED: ("#3b82f6", "Partially Refunded"),
+            DepositStatus.PENDING_COLLECTION: ("#f59e0b", "Pending Collection"),
+        }
+        color, label = color_map.get(derived_status, ("#f59e0b", "Pending Collection"))
         return format_html(
-            "{}",
-            '<span style="background:#f59e0b; color:white; padding:3px 10px; '
-            'border-radius:20px; font-size:10px; font-weight:bold;">'
-            "Pending Collection"
-            "</span>",
+            '<span style="background:{}; color:white; padding:3px 10px; '
+            'border-radius:20px; font-size:10px; font-weight:bold;">{}</span>',
+            color,
+            label,
         )
 
     collection_status_display.short_description = "Collection Status"

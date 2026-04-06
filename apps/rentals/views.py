@@ -452,3 +452,18 @@ def api_rental_detail(request, rental_id):
         )
 
     return Response(_serialize_rental(rental), status=status.HTTP_200_OK)
+
+
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def rental_currency_api(request, rental_id):
+    """
+    Endpoint داخلي للأدمن فقط.
+    يُرجع currency_code للعقد المطلوب لاستخدامه في JavaScript.
+    """
+    try:
+        rental = Rental.objects.only("currency_code").get(pk=rental_id)
+        return JsonResponse({"currency_code": rental.currency_code or "USD"})
+    except Rental.DoesNotExist:
+        return JsonResponse({"currency_code": "USD"})

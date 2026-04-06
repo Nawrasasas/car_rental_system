@@ -13,7 +13,7 @@
                 <label style="display:block; font-weight:bold;">To Date:</label>
                 <input type="date" name="end_date" value="{{ request.GET.end_date|default:income_data.period_end }}" style="padding: 8px;">
             </div>
-            <button type="submit" style="background: #417690; color: white; border: none; padding: 10px 25px; cursor: pointer; border-radius: 4px; font-weight: bold;">
+            <button type="submit" style="background: #276d90; color: white; border: none; padding: 10px 25px; cursor: pointer; border-radius: 4px; font-weight: bold;">
                 GENERATE REPORT
             </button>
             <button type="submit" name="export" value="excel" style="background: #16a34a; color: white; border: none; padding: 10px 25px; cursor: pointer; border-radius: 4px; font-weight: bold;">
@@ -22,8 +22,8 @@
         </form>
     </div>
 
-    <div style="background: white; padding: 25px; border: 1px solid #ccc; border-top: 4px solid #417690; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <h1 style="text-align: center; color: #417690;">INCOME STATEMENT</h1>
+    <div style="background: white; padding: 25px; border: 1px solid #ccc; border-top: 4px solid #24607e; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <h1 style="text-align: center; color: #124f6d;">INCOME STATEMENT</h1>
         <p style="text-align: center; color: #666; border-bottom: 2px solid #eee; padding-bottom: 20px;">
             Period: {{ income_data.period_start }} To {{ income_data.period_end }}
         </p>
@@ -66,7 +66,7 @@
             </tbody>
         </table>
 
-        <div style="background: #417690; color: white; padding: 15px; display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; border-radius: 4px;">
+        <div style="background: #1e536e; color: white; padding: 15px; display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; border-radius: 4px;">
             <span>NET INCOME</span>
             <span>$ {{ income_data.net_income }}</span>
         </div>

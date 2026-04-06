@@ -1,0 +1,300 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .vehicle-record-page {
+        padding: 18px 0;
+    }
+
+    .vehicle-record-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+
+    .vehicle-record-btn {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 700;
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: 1px solid #1d4ed8 !important;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+    }
+
+    .vehicle-record-btn:hover {
+        background: #1d4ed8;
+        color: #353cb6 !important;
+    }   
+
+    .vehicle-record-btn--secondary {
+        background: #589acd !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .vehicle-record-btn--secondary:hover {
+        background: #2973bd !important;
+        color: #0f172a !important;
+        border-color: #94a3b8 !important;
+    }
+
+    .vehicle-record-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .vehicle-record-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    .vehicle-record-label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .vehicle-record-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    .vehicle-record-value--small {
+        font-size: 16px;
+    }
+
+    .vehicle-record-table-wrap {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        overflow: auto;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    .vehicle-record-table {
+        width: 100%;
+        min-width: 1500px;
+        border-collapse: collapse;
+    }
+
+    .vehicle-record-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 12px 14px;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .vehicle-record-table tbody td {
+        border-bottom: 1px solid #eef2f7;
+        padding: 12px 14px;
+        vertical-align: top;
+        color: #0f172a;
+        font-size: 13px;
+    }
+
+    .vehicle-record-table tbody tr:hover {
+        background: #fafcff;
+    }
+
+    .record-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .record-badge--rental {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .record-badge--usage {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .record-badge--replacement {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .record-open-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .small-muted {
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .empty-state {
+        padding: 28px;
+        text-align: center;
+        color: #64748b;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{{ admin_index_url }}">Home</a>
+    &rsaquo; <a href="{{ app_list_url }}">Vehicles</a>
+    &rsaquo; <a href="{{ vehicle_changelist_url }}">Vehicles</a>
+    &rsaquo; <a href="{{ vehicle_change_url }}">{{ vehicle }}</a>
+    &rsaquo; Vehicle Record
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="vehicle-record-page">
+
+    <!-- حاشية عربية: أزرار العودة داخل الأدمن -->
+    <div class="vehicle-record-actions">
+        <a href="{{ vehicle_change_url }}" class="vehicle-record-btn">Back to Vehicle</a>
+        <a href="{{ vehicle_changelist_url }}" class="vehicle-record-btn vehicle-record-btn--secondary">Back to List</a>
+    </div>
+
+    <!-- حاشية عربية: بطاقات ملخص أعلى السجل -->
+    <div class="vehicle-record-grid">
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Plate Number</div>
+            <div class="vehicle-record-value">{{ vehicle.plate_number }}</div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Vehicle</div>
+            <div class="vehicle-record-value vehicle-record-value--small">
+                {{ vehicle.brand|default:"-" }} {{ vehicle.model|default:"-" }}
+            </div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Current Status</div>
+            <div class="vehicle-record-value vehicle-record-value--small">
+                {{ vehicle.get_status_display }}
+            </div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Current Branch</div>
+            <div class="vehicle-record-value vehicle-record-value--small">
+                {% if vehicle.branch %}{{ vehicle.branch.name }}{% else %}-{% endif %}
+            </div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Total Rows</div>
+            <div class="vehicle-record-value">{{ record_summary.all }}</div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Rentals</div>
+            <div class="vehicle-record-value">{{ record_summary.rentals }}</div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Vehicle Usage</div>
+            <div class="vehicle-record-value">{{ record_summary.usages }}</div>
+        </div>
+
+        <div class="vehicle-record-card">
+            <div class="vehicle-record-label">Replacements</div>
+            <div class="vehicle-record-value">{{ record_summary.replacements }}</div>
+        </div>
+    </div>
+
+    <div class="vehicle-record-table-wrap">
+        {% if rows %}
+            <table class="vehicle-record-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Reference</th>
+                        <th>Related Contract</th>
+                        <th>Role / Purpose</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Start</th>
+                        <th>End / Expected</th>
+                        <th>KM Out</th>
+                        <th>KM In</th>
+                        <th>Status</th>
+                        <th>Person</th>
+                        <th>Details</th>
+                        <th>Open</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>
+                                <span class="record-badge record-badge--{{ row.source }}">
+                                    {{ row.record_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ row.reference }}</strong>
+                            </td>
+                            <td>{{ row.related_contract }}</td>
+                            <td>{{ row.role }}</td>
+                            <td>{{ row.from_branch }}</td>
+                            <td>{{ row.to_branch }}</td>
+                            <td>{{ row.time_out }}</td>
+                            <td>{{ row.time_in }}</td>
+                            <td>{{ row.km_out }}</td>
+                            <td>{{ row.km_in }}</td>
+                            <td>{{ row.status }}</td>
+                            <td>{{ row.person }}</td>
+                            <td>
+                                <div>{{ row.details }}</div>
+                            </td>
+                            <td>
+                                {% if row.open_url %}
+                                    <a class="record-open-link" href="{{ row.open_url }}">
+                                        {{ row.open_label }}
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No record entries were found for this vehicle.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

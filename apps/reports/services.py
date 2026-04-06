@@ -17,7 +17,9 @@ from django.urls import reverse  # مهم: لتوليد روابط الأدمن
 from apps.accounting.models import Account, JournalItem
 
 
-def get_general_ledger(account_code, start_date=None, end_date=None):
+def get_general_ledger(
+    account_code, start_date=None, end_date=None, vehicle_id=None, branch_id=None
+):
     """
     استخراج دفتر الأستاذ (General Ledger) لحساب معين
     مع إظهار روابط القيد والمصدر الأصلي بشكل تفاعلي.
@@ -31,13 +33,16 @@ def get_general_ledger(account_code, start_date=None, end_date=None):
     items = JournalItem.objects.filter(
         account=account,
         journal_entry__state=EntryState.POSTED,
-    ).select_related("journal_entry")
+    ).select_related("journal_entry", "vehicle", "branch")
 
-    # تطبيق فلاتر التاريخ إذا تم تمريرها
     if start_date:
         items = items.filter(journal_entry__entry_date__gte=start_date)
     if end_date:
         items = items.filter(journal_entry__entry_date__lte=end_date)
+    if vehicle_id:
+        items = items.filter(vehicle_id=vehicle_id)
+    if branch_id:
+        items = items.filter(branch_id=branch_id)
 
     # ترتيب ثابت للحركات
     items = items.order_by("journal_entry__entry_date", "journal_entry__id", "id")
@@ -111,9 +116,10 @@ def get_general_ledger(account_code, start_date=None, end_date=None):
                 item.debit or Decimal("0.00")
             )
 
-        # --- رقم القيد إن وجد، وإلا fallback على ID ---
+        # --- رقم القيد الصحيح من JournalEntry.entry_no ---
+        # --- وإذا تعذر لسبب ما نرجع إلى fallback على ID ---
         entry_number = (
-            getattr(journal_entry, "entry_number", None) or f"JE-{journal_entry.id}"
+            getattr(journal_entry, "entry_no", None) or f"JE-{journal_entry.id}"
         )
 
         # --- رابط القيد داخل Django Admin ---
@@ -178,6 +184,25 @@ def get_general_ledger(account_code, start_date=None, end_date=None):
                 "entry_admin_url": entry_admin_url,  # رابط القيد المحاسبي
                 "source_label": source_label,  # رقم/مرجع المستند الأصلي
                 "source_admin_url": source_admin_url,  # رابط المستند الأصلي إذا توفر
+                # =====================================================
+                # بيانات أصل العملية - مرجعية للعرض فقط
+                # =====================================================
+                # هذه الحقول مأخوذة من رأس القيد
+                # وليست من سطر اليومية نفسه
+                "original_currency_code": getattr(
+                    journal_entry, "original_currency_code", None
+                ),
+                "original_amount": getattr(journal_entry, "original_amount", None),
+                "exchange_rate_to_usd": getattr(
+                    journal_entry, "exchange_rate_to_usd", None
+                ),
+                "exchange_rate_date": getattr(
+                    journal_entry, "exchange_rate_date", None
+                ),
+                "posted_amount_usd": getattr(journal_entry, "posted_amount_usd", None),
+                # =====================================================
+                # القيم المحاسبية الرسمية تبقى بالدولار فقط
+                # =====================================================
                 "debit": item.debit or Decimal("0.00"),
                 "credit": item.credit or Decimal("0.00"),
                 "balance": running_balance,

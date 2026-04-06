@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+    <li>
+        <a href="{{ import_excel_url }}" class="button" style="background:#417690; color:white; padding:6px 14px; border-radius:4px; text-decoration:none; font-size:13px;">
+            ⬆ استيراد Excel
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}

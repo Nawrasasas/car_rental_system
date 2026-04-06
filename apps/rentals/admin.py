@@ -2,7 +2,9 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
+from django.db import models
 from django.db.models import Sum, F, Value, DecimalField, ExpressionWrapper, Q
+
 from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.utils import timezone
@@ -11,7 +13,7 @@ from django.utils.safestring import mark_safe
 from django.apps import apps
 from apps.vehicles.models import Vehicle
 from import_export.admin import ExportActionModelAdmin
-from .models import Rental, RentalLog
+from .models import Rental, RentalLog, VehicleReplacement
 from apps.attachments.inlines import AttachmentInline
 from apps.payments.models import Payment
 from django import forms
@@ -32,6 +34,38 @@ class RentalLogInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         # منع إضافة سجل يدويًا من الإدارة
+        return False
+
+
+class VehicleReplacementInline(admin.TabularInline):
+    """
+    عرض سجل استبدال السيارات داخل صفحة العقد (قراءة فقط).
+    الإضافة والتعديل يتمان عبر أزرار الاستبدال المخصصة فقط.
+    """
+    model = VehicleReplacement
+    extra = 0
+    can_delete = False
+    fields = (
+        'original_vehicle',
+        'replacement_vehicle',
+        'started_at',
+        'ended_at',
+        'reason',
+        'status',
+        'started_by',
+        'ended_by',
+    )
+    readonly_fields = fields
+    verbose_name = "Vehicle Replacement Record"
+    verbose_name_plural = "Vehicle Replacement History"
+    show_change_link = False
+
+    def has_add_permission(self, request, obj=None):
+        # الإضافة تتم فقط عبر زر Start Replacement
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # التعديل ممنوع يدويًا
         return False
 
 
@@ -108,25 +142,107 @@ class RentalStatusFilter(admin.SimpleListFilter):
 
 
 class RentalAdminForm(forms.ModelForm):
+    # ======================================================
+    # دفعة العقد المقدمة
+    # ======================================================
     initial_payment_amount = forms.DecimalField(
         required=False,
         min_value=0,
         max_digits=10,
         decimal_places=2,
-        label="Initial Payment Amount",
+        label="Advance Rent Amount",
     )
 
     initial_payment_method = forms.ChoiceField(
         required=False,
-        choices=Payment._meta.get_field("method").choices,
-        label="Initial Payment Method",
+        choices=[("", "--- Select Method ---")] + list(Payment._meta.get_field("method").choices),
+        label="Contract Rent Method",
     )
 
     initial_payment_notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 2}),
-        label="Initial Payment Notes",
+        label="Contract Rent Notes",
     )
+
+    # ======================================================
+    # دفعة التأمين المقدمة
+    # ======================================================
+    initial_deposit_amount = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        label="Advance Deposit",
+    )
+
+    # --- طريقة دفع التأمين في صفحة الإنشاء ---
+    initial_deposit_method = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("cash", "Cash"),
+            ("bank_transfer", "Bank Transfer"),
+            ("visa", "Visa"),
+            ("mastercard", "Mastercard"),
+            ("pos", "POS / Card"),
+        ],
+        label="Deposit Payment Method",
+        initial="cash",
+        help_text="How the advance deposit will be collected.",
+    )
+
+    # --- طريقة الدفع عند قبض مبلغ العقد والتأمين معًا (للعقود الموجودة) ---
+    deposit_collection_method = forms.ChoiceField(
+        required=False,
+        choices=[("cash", "Cash"), ("bank_transfer", "Bank Transfer"), ("visa", "Visa"), ("mastercard", "Mastercard"), ("pos", "POS / Card")],
+        label="Collection Payment Method",
+        initial="cash",
+        help_text="Method used for both contract and deposit collection.",
+    )
+
+    # ======================================================
+    # حقول بدء الاستبدال (غير مربوطة بالموديل مباشرةً)
+    # تُقرأ فقط في response_change عند الضغط على Start Replacement
+    # ======================================================
+    replacement_vehicle = forms.ModelChoiceField(
+        required=False,
+        queryset=Vehicle.objects.none(),  # يُملأ في __init__ ديناميكيًا
+        label="Replacement Vehicle",
+        help_text="Only available vehicles are shown.",
+        empty_label="--- Select Available Vehicle ---",
+    )
+
+    replacement_reason = forms.CharField(
+        required=False,
+        max_length=500,
+        label="Replacement Reason",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Mechanical failure, Accident repair..."}),
+    )
+
+    replacement_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Optional notes..."}),
+        label="Replacement Notes (Optional)",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # تحديث قائمة السيارات المتاحة ديناميكيًا عند كل فتح للفورم
+        self.fields['replacement_vehicle'].queryset = (
+            Vehicle.objects.filter(status='available').order_by('plate_number')
+        )
+        # ======================================================
+        # حل مشكلة Deposit Amount الفارغ في صفحة إنشاء العقد
+        # نضع 0.00 تلقائيًا فقط عند فتح صفحة إنشاء جديدة
+        # ولا نمس صفحة التعديل
+        # ولا نكتب فوق القيمة المرسلة من المستخدم بعد submit
+        # ======================================================
+        if (
+            not self.instance.pk
+            and not self.is_bound
+            and "deposit_amount" in self.fields
+        ):
+            self.fields["deposit_amount"].initial = Decimal("0.00")
 
     class Meta:
         model = Rental
@@ -135,13 +251,37 @@ class RentalAdminForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        # ======================================================
+        # تحقق السائق الإضافي على مستوى الفورم
+        # ======================================================
+        has_additional_driver = cleaned_data.get('has_additional_driver')
+        additional_driver = cleaned_data.get('additional_driver')
         customer = cleaned_data.get("customer")
+
+        if has_additional_driver:
+            if not additional_driver:
+                self.add_error(
+                    'additional_driver',
+                    "Please select an additional driver."
+                )
+            elif customer and additional_driver.pk == customer.pk:
+                self.add_error(
+                    'additional_driver',
+                    "The additional driver cannot be the same as the primary customer."
+                )
+        else:
+            # إذا لم يكن has_additional_driver مفعلًا نمسح القيمة
+            cleaned_data['additional_driver'] = None
+
         start_date = cleaned_data.get("start_date")
         end_date = cleaned_data.get("end_date")
         pickup_odometer = cleaned_data.get("pickup_odometer")
         return_odometer = cleaned_data.get("return_odometer")
         initial_payment_amount = cleaned_data.get("initial_payment_amount")
         initial_payment_method = cleaned_data.get("initial_payment_method")
+        initial_deposit_amount = cleaned_data.get("initial_deposit_amount") or Decimal(
+            "0.00"
+        )
 
         if not self.instance.pk and end_date and end_date < timezone.now():
             raise forms.ValidationError(
@@ -191,9 +331,29 @@ class RentalAdminForm(forms.ModelForm):
         daily_rate = cleaned_data.get("daily_rate") or Decimal("0.00")
         vat_percentage = cleaned_data.get("vat_percentage") or Decimal("0.00")
         deposit_amount = cleaned_data.get("deposit_amount") or Decimal("0.00")
+        # --- منع دفعة تأمين مقدمة أكبر من مبلغ التأمين نفسه ---
+        if initial_deposit_amount < 0:
+            self.add_error(
+                "initial_deposit_amount",
+                "Advance deposit cannot be negative.",
+            )
+
+        if initial_deposit_amount > deposit_amount:
+            self.add_error(
+                "initial_deposit_amount",
+                "Advance deposit cannot be greater than the deposit amount.",
+            )
+
+        if initial_deposit_amount > 0 and deposit_amount <= 0:
+            self.add_error(
+                "initial_deposit_amount",
+                "You cannot enter an advance deposit when deposit amount is zero.",
+            )
         traffic_fines = cleaned_data.get("traffic_fines") or Decimal("0.00")
         damage_fees = cleaned_data.get("damage_fees") or Decimal("0.00")
         other_charges = cleaned_data.get("other_charges") or Decimal("0.00")
+        baby_seat_fee = cleaned_data.get("baby_seat_fee") or Decimal("0.00")
+        insurance_fee = cleaned_data.get("insurance_fee") or Decimal("0.00")
 
         if start_date and end_date and end_date >= start_date:
             # --- نهمل الدقائق والثواني والمايكروثانية ---
@@ -216,6 +376,8 @@ class RentalAdminForm(forms.ModelForm):
                 + traffic_fines
                 + damage_fees
                 + other_charges
+                + baby_seat_fee
+                + insurance_fee
                 + deposit_amount
             )
 
@@ -281,10 +443,36 @@ class PaymentInlineFormSet(BaseInlineFormSet):
 @admin.register(Rental, site=custom_admin_site)
 class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     form = RentalAdminForm
-    autocomplete_fields = ('vehicle',)
+    # additional_driver يستخدم autocomplete لأن CustomerAdmin يملك search_fields
+    # vehicle أُزيل من autocomplete حتى نتمكن من فلترة السيارات المتاحة فقط
+    autocomplete_fields = ('additional_driver',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        عند إنشاء عقد جديد: يعرض فقط السيارات ذات الحالة available.
+        عند تعديل عقد موجود: يضيف السيارة الحالية للقائمة حتى لو كانت غير متاحة.
+        """
+        if db_field.name == 'vehicle':
+            obj_id = request.resolver_match.kwargs.get('object_id')
+            if obj_id:
+                # تعديل عقد قائم — نُظهر السيارات المتاحة + السيارة المرتبطة بالعقد حالياً
+                try:
+                    current_vehicle_id = Rental.objects.filter(pk=obj_id).values_list('vehicle_id', flat=True).first()
+                    kwargs['queryset'] = Vehicle.objects.filter(
+                        models.Q(status='available') | models.Q(pk=current_vehicle_id)
+                    ).order_by('plate_number')
+                except Exception:
+                    kwargs['queryset'] = Vehicle.objects.filter(status='available').order_by('plate_number')
+            else:
+                # إنشاء عقد جديد — السيارات المتاحة فقط
+                kwargs['queryset'] = Vehicle.objects.filter(status='available').order_by('plate_number')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     # قالب مخصص لإظهار بطاقات حالات العقود أعلى صفحة القائمة
     change_list_template = "admin/rentals/rental/change_list.html"
+
+    # قالب مخصص لصفحة تعديل العقد — يعرض Payment Summary Box أعلى الصفحة
+    change_form_template = "admin/rentals/rental/change_form.html"
 
     def changelist_view(self, request, extra_context=None):
         # --- نلتقط قيم فلتر التاريخ قبل أن يتعامل معها Django Admin ---
@@ -510,6 +698,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "return_time",
         "grand_total",
         "balance_due",
+        "online_reference_display",  # المرجع الخارجي — مفيد للبحث السريع بالعين
         "branch",
         "status_label",
         "print_contract_button",
@@ -531,12 +720,13 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "customer__phone",
         "customer__company_name",
         "vehicle__plate_number",
+        "online_reference",  # البحث بالمرجع الخارجي / رقم الحجز
     )
 
     # ترتيب افتراضي
     ordering = ('-id',)
 
-    # الحقول المقروءة فقط
+    # الحقول المقروءة فقط — تشمل أزرار العمليات والحقول المحسوبة
     readonly_fields = (
         "rental_days",
         "net_total",
@@ -547,11 +737,14 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         "collect_contract_and_deposit_button",
         "collect_traffic_fine_button",
         "return_vehicle_button",
+        "cancel_rental_button",
         "print_contract_button",
+        "start_replacement_button",  # زر بدء استبدال السيارة
+        "end_replacement_button",  # زر إنهاء الاستبدال النشط
     )
 
-    # العناصر الداخلية
-    inlines = [AttachmentInline ]
+    # العناصر الداخلية — سجل الاستبدال يُضاف هنا كـ inline للقراءة فقط
+    inlines = [AttachmentInline, VehicleReplacementInline]
 
     # عدد العناصر في الصفحة
     list_per_page = 25
@@ -594,8 +787,10 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             payment = Payment(
                 rental=rental,
                 amount_paid=amount,
+                currency_code=rental.currency_code or "USD",
                 method=method,
                 status="completed",
+                payment_date=timezone.localdate(),
                 notes=notes or "",
             )
 
@@ -603,6 +798,16 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             # --- وتبقى محاسبيًا Draft حتى الضغط على Post للعقد ---
             payment.full_clean()
             payment.save()
+
+        # --- عند إنشاء عقد جديد: نحفظ طريقة دفع التأمين مسبقًا في سجل Deposit ---
+        # --- حتى تُستخدم تلقائيًا عند Post والقبض لاحقًا ---
+        if not change and Decimal(rental.deposit_amount or 0) > 0:
+            from apps.deposits.services import create_deposit_from_rental
+            deposit_method = form.cleaned_data.get("initial_deposit_method") or "cash"
+            try:
+                create_deposit_from_rental(rental=rental, method=deposit_method)
+            except Exception:
+                pass  # لا نكسر الحفظ إذا فشل إنشاء سجل التأمين
 
     def save_formset(self, request, form, formset, change):
         # --- إذا لم يكن هذا الـ formset خاصًا بالدفعات ---
@@ -633,34 +838,79 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
     def get_fields(self, request, obj=None):
         fields = [
-            "print_contract_button",
-            "post_rental_button",
-            "collect_contract_and_deposit_button",
-            "collect_traffic_fine_button",
-            "return_vehicle_button",
             "customer",
             "vehicle",
             "branch",
+            "has_additional_driver",
+            "additional_driver",
             "pickup_odometer",
             "return_odometer",
+            "actual_return_date",
             "start_date",
             "end_date",
-            "actual_return_date",
+            "currency_code",
             "daily_rate",
             "deposit_amount",
             "vat_percentage",
             "traffic_fines",
             "damage_fees",
+            "baby_seat_fee",
+            "insurance_fee",
             "other_charges",
             "rental_days",
             "net_total",
+            "online_reference",
             "auto_renew",
+            "contract_notes",
             "created_by",
             "created_at",
         ]
 
-        if obj:
-            fields.insert(8, "status")
+        if not obj:
+            # ======================================================
+            # صفحة إنشاء العقد:
+            # 1) Advance Rent Amount
+            # 2) Advance Deposit
+            # 3) Deposit Payment Method بجانب Advance Deposit
+            # 4) Contract Rent Method
+            # 5) Contract Rent Notes
+            # ======================================================
+            fields.extend(
+                [
+                    "initial_payment_amount",
+                    "initial_deposit_amount",
+                    "initial_deposit_method",
+                    "initial_payment_method",
+                    "initial_payment_notes",
+                ]
+            )
+        else:
+            fields.insert(2, "status")
+
+            # --- عقد محفوظ ومرحّل: أضف حقل طريقة القبض ---
+            if (
+                obj.accounting_state == "posted"
+                and obj.journal_entry_id
+                and obj.status == "active"
+            ):
+                fields.append("deposit_collection_method")
+
+            if obj.status == 'active':
+                active_replacement = obj.replacements.filter(status='active').exists()
+
+                if active_replacement:
+                    fields.extend([
+                        "end_replacement_button",
+                        "cancel_rental_button",
+                    ])
+                else:
+                    fields.extend([
+                        "start_replacement_button",
+                        "replacement_vehicle",
+                        "replacement_reason",
+                        "replacement_notes",
+                        "cancel_rental_button",
+                    ])
 
         return fields
 
@@ -676,11 +926,14 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                     "status",
                     "start_date",
                     "end_date",
+                    "currency_code",
                     "daily_rate",
                     "deposit_amount",
                     "vat_percentage",
                     "rental_days",
                     "damage_fees",
+                    "baby_seat_fee",
+                    "insurance_fee",
                     "other_charges",
                     "net_total",
                     "auto_renew",
@@ -691,11 +944,14 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             )
             # --- المخالفة تبقى قابلة للتعديل بعد Save ---
             # --- لكن تُقفل فقط بعد Post ---
-            if obj.accounting_state == "posted" or obj.journal_entry_id:
+            if obj.accounting_state == "posted" and obj.journal_entry_id:
                 readonly.append("traffic_fines")
 
             if obj.status in ('completed', 'cancelled'):
                 readonly.append('return_odometer')
+                # --- قفل السائق الإضافي بعد إغلاق العقد ---
+                # (contract_notes و online_reference تبقى قابلة للتعديل دائمًا)
+                readonly.extend(['has_additional_driver', 'additional_driver'])
 
         return tuple(dict.fromkeys(readonly))
 
@@ -886,13 +1142,19 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         )
 
     def _get_collection_amounts(self, rental):
-        contract_collected = Decimal("0.00")
+        # =====================================================
+        # إجمالي دفعات العقد الفعلية
+        # =====================================================
+        # مهم:
+        # لا نعتمد فقط على الدفعة الآلية __AUTO_CONTRACT_COLLECTION__
+        # لأن المستخدم قد ينشئ دفعات عادية مرتبطة بالعقد
+        # وهذه يجب أن تظهر داخل Payment Summary أيضًا
+        contract_collected = Payment.objects.filter(rental=rental).aggregate(
+            total=Sum("amount_paid")
+        )["total"] or Decimal("0.00")
+
         deposit_collected = Decimal("0.00")
         fine_collected = Decimal("0.00")
-
-        contract_payment = self._get_auto_contract_collection_payment(rental)
-        if contract_payment:
-            contract_collected = Decimal(contract_payment.amount_paid or 0)
 
         # --- نعتمد أولًا على سجل Deposit الحقيقي ---
         deposit_obj = self._get_deposit_record(rental)
@@ -911,6 +1173,88 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             "deposit": deposit_collected,
             "fine": fine_collected,
             "total": contract_collected + deposit_collected + fine_collected,
+        }
+
+    def _get_collection_amounts_with_refunds(self, rental):
+        """
+        حساب شامل للمبالغ المقبوضة صافية من كل استرداد مرحّل.
+
+        يشمل:
+          - دفعات العقد (جميع Payment مرتبطة بالعقد) ناقص PaymentRefund المرحّلة
+          - التأمين المقبوض (Deposit) ناقص DepositRefund المرحّلة
+          - المخالفات المقبوضة (TrafficFine)
+        """
+        from apps.payments.models import PaymentRefund
+
+        # =========================================================
+        # 1) دفعات العقد — جلب كل الدفعات مع سجلات الاسترداد دفعة واحدة
+        # =========================================================
+        payments_qs = Payment.objects.filter(rental=rental).select_related(
+            "refund_record"
+        )
+
+        contract_gross = Decimal("0.00")
+        contract_refunded = Decimal("0.00")
+
+        for p in payments_qs:
+            contract_gross += Decimal(p.amount_paid or 0)
+            refund = getattr(p, "refund_record", None)
+            if refund and getattr(refund, "journal_entry_id", None):
+                contract_refunded += Decimal(refund.amount or 0)
+
+        contract_net = contract_gross - contract_refunded
+
+        # =========================================================
+        # 2) التأمين — اعتمد على سجل Deposit الحقيقي
+        # =========================================================
+        deposit_gross = Decimal("0.00")
+        deposit_refunded = Decimal("0.00")
+
+        deposit_obj = self._get_deposit_record(rental)
+        if deposit_obj and getattr(deposit_obj, "journal_entry_id", None):
+            deposit_gross = Decimal(getattr(deposit_obj, "amount", 0) or 0)
+            # --- اجمع كل DepositRefund المرحّلة (journal_entry موجود) ---
+            if hasattr(deposit_obj, "refunds"):
+                for dr in deposit_obj.refunds.filter(
+                    journal_entry__isnull=False
+                ):
+                    deposit_refunded += Decimal(getattr(dr, "amount", 0) or 0)
+        elif getattr(rental, "deposit_journal_entry_id", None):
+            # --- توافق مع البيانات القديمة ---
+            deposit_gross = Decimal(rental.deposit_amount or 0)
+
+        deposit_net = deposit_gross - deposit_refunded
+
+        # =========================================================
+        # 3) المخالفات المرورية
+        # =========================================================
+        fine_collected = Decimal("0.00")
+        fine = self._get_traffic_fine_for_rental(rental)
+        if fine and getattr(fine, "customer_collection_journal_entry_id", None):
+            fine_collected = Decimal(getattr(fine, "amount", 0) or 0)
+
+        total_gross = contract_gross + deposit_gross + fine_collected
+        total_refunded = contract_refunded + deposit_refunded
+        total_net = contract_net + deposit_net + fine_collected
+
+        return {
+            # دفعات العقد
+            "contract_gross": contract_gross,
+            "contract_refunded": contract_refunded,
+            "contract_net": contract_net,
+            # التأمين
+            "deposit_gross": deposit_gross,
+            "deposit_refunded": deposit_refunded,
+            "deposit_net": deposit_net,
+            # المخالفات
+            "fine": fine_collected,
+            # الإجماليات
+            "total_gross": total_gross,
+            "total_refunded": total_refunded,
+            "total": total_net,
+            # متوافق مع الكود القديم
+            "contract": contract_net,
+            "deposit": deposit_net,
         }
 
     def _build_collection_state_html(self, rental):
@@ -933,6 +1277,9 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         with transaction.atomic():
             rental.refresh_from_db()
 
+            if rental.status == "cancelled":
+                raise ValidationError("Cancelled rentals cannot be posted.")
+
             if rental.accounting_state == "posted" or rental.journal_entry_id:
                 raise ValidationError("This rental is already posted to accounting.")
 
@@ -943,7 +1290,7 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             # --- بدون قبض وبدون قيد كاش ---
             create_deposit_from_rental(rental=rental)
 
-    def _collect_contract_and_deposit_from_admin(self, *, rental):
+    def _collect_contract_and_deposit_from_admin(self, *, rental, method: str = "cash"):
         from apps.accounting.services import post_payment_receipt
         from apps.deposits.services import create_deposit_from_rental, post_deposit_receipt
 
@@ -961,7 +1308,8 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                 payment = Payment(
                     rental=rental,
                     amount_paid=contract_amount,
-                    method="cash",
+                    currency_code=rental.currency_code or "USD",
+                    method=method,
                     status="completed",
                     payment_date=timezone.now().date(),
                     notes=self.AUTO_CONTRACT_COLLECTION_NOTE,
@@ -971,17 +1319,21 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                 post_payment_receipt(payment=payment)
 
             # --- ثانيًا: قبض التأمين من سجل Deposit الحقيقي ---
-            deposit_obj = create_deposit_from_rental(rental=rental)
+            deposit_obj = create_deposit_from_rental(rental=rental, method=method)
             if deposit_obj and not deposit_obj.journal_entry_id:
                 post_deposit_receipt(deposit=deposit_obj)
 
             rental.refresh_from_db()
+            if rental.status == "cancelled":
+                raise ValidationError("Cannot collect cash for a cancelled rental.")
 
     def _collect_traffic_fine_from_admin(self, *, rental):
         from apps.accounting.services import post_traffic_fine_collection
 
         with transaction.atomic():
             rental.refresh_from_db()
+            if rental.status == "cancelled":
+                raise ValidationError("Cannot collect traffic fine for a cancelled rental.")
 
             if rental.accounting_state != "posted" or not rental.journal_entry_id:
                 raise ValidationError(
@@ -1018,6 +1370,16 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         if not obj or not obj.pk:
             return "Save the rental first to enable posting."
 
+        # --- عقد ملغي: لا يسمح بترحيله إطلاقًا ---
+        if obj.status == "cancelled":
+            return mark_safe(
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cancelled Rental'
+                '</button>'
+            )
+
         if obj.accounting_state == "posted" or obj.journal_entry_id:
             return mark_safe(
                 '<button type="button" disabled '
@@ -1045,6 +1407,17 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         if not obj or not obj.pk:
             return mark_safe(hidden_state + "Save the rental first to enable actions.")
 
+        # --- عقد ملغي: لا يسمح بأي قبض عليه ---
+        if obj.status == "cancelled":
+            return mark_safe(
+                hidden_state +
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cancelled Rental'
+                '</button>'
+            )
+
         if obj.accounting_state != "posted" or not obj.journal_entry_id:
             return mark_safe(
                 hidden_state +
@@ -1056,13 +1429,28 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
             )
 
         contract_amount = self._get_contract_receivable_amount(obj)
-        contract_done = bool(self._get_auto_contract_collection_payment(obj)) or contract_amount <= 0
+        # --- نعتمد على إجمالي المدفوعات الصافية (ناقص الاستردادات) مقارنةً بمبلغ العقد ---
+        # --- يشمل الدفعات اليدوية والآلية على حدٍّ سواء ---
+        amounts = self._get_collection_amounts_with_refunds(obj)
+        contract_done = amounts["contract_net"] >= contract_amount or contract_amount <= 0
         deposit_obj = self._get_deposit_record(obj)
         deposit_done = (
             bool(getattr(deposit_obj, "journal_entry_id", None))
             or bool(obj.deposit_journal_entry_id)
             or Decimal(obj.deposit_amount or 0) <= 0
         )
+
+        # --- تعطيل الزر إذا كان الـ remaining balance صفراً أو أقل ---
+        remaining = Decimal(obj.net_total or 0) - amounts["contract_net"]
+        if remaining <= 0:
+            return mark_safe(
+                hidden_state +
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Already Collected'
+                '</button>'
+            )
 
         if contract_done and deposit_done:
             return mark_safe(
@@ -1088,6 +1476,16 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     def collect_traffic_fine_button(self, obj):
         if not obj or not obj.pk:
             return "Save the rental first to enable actions."
+
+        # --- عقد ملغي: لا يسمح بأي قبض مخالفة عليه ---
+        if obj.status == "cancelled":
+            return mark_safe(
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cancelled Rental'
+                '</button>'
+            )
 
         if Decimal(obj.traffic_fines or 0) <= 0:
             return "No Traffic Fine."
@@ -1125,6 +1523,53 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
     collect_traffic_fine_button.short_description = "Collect Traffic Fine"
 
     post_rental_button.short_description = "Post Rental"
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        """
+        حقن بيانات Payment Summary وأزرار العمليات في سياق القالب
+        قبل عرض صفحة العقد.
+        """
+        if obj and obj.pk:
+            try:
+                # --- حساب كامل للمبالغ المقبوضة صافية من الاستردادات ---
+                amounts = self._get_collection_amounts_with_refunds(obj)
+                net_total = Decimal(obj.net_total or 0)
+                total_paid_net = amounts["total"]
+                remaining_balance = net_total - total_paid_net
+
+                # --- أيام التأخير ---
+                overdue_days = obj.delay_days if obj.is_overdue else 0
+
+                context.update({
+                    # ملخص الدفعات
+                    "summary_net_total": net_total,
+                    "summary_total_paid": total_paid_net,
+                    "summary_remaining_balance": remaining_balance,
+                    # تفاصيل التوزيع
+                    "summary_contract_gross": amounts["contract_gross"],
+                    "summary_contract_refunded": amounts["contract_refunded"],
+                    "summary_contract_net": amounts["contract_net"],
+                    "summary_deposit_gross": amounts["deposit_gross"],
+                    "summary_deposit_refunded": amounts["deposit_refunded"],
+                    "summary_deposit_net": amounts["deposit_net"],
+                    "summary_fine": amounts["fine"],
+                    "summary_total_refunded": amounts["total_refunded"],
+                    # الحالة
+                    "is_overdue": obj.is_overdue,
+                    "overdue_days": overdue_days,
+                    # أزرار العمليات — نمررها جاهزة لتُعرض مباشرةً في الـ sticky bar
+                    "btn_print": self.print_contract_button(obj),
+                    "btn_post": self.post_rental_button(obj),
+                    "btn_collect": self.collect_contract_and_deposit_button(obj),
+                    "btn_fine": self.collect_traffic_fine_button(obj),
+                    "btn_return": self.return_vehicle_button(obj),
+                    "btn_cancel": self.cancel_rental_button(obj),
+                })
+            except Exception:
+                # --- في حالة أي خطأ لا نكسر الصفحة ---
+                pass
+
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         # --- إنشاء قاموس السياق الإضافي إذا لم يكن موجودًا ---
@@ -1188,7 +1633,9 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
         if "_collect_contract_and_deposit" in request.POST:
             try:
-                self._collect_contract_and_deposit_from_admin(rental=obj)
+                # --- قراءة طريقة الدفع من الفورم (الافتراضي: cash) ---
+                collection_method = request.POST.get("deposit_collection_method", "cash").strip() or "cash"
+                self._collect_contract_and_deposit_from_admin(rental=obj, method=collection_method)
                 self.message_user(
                     request,
                     "Contract amount and deposit collected successfully.",
@@ -1220,6 +1667,142 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
                     f"Error while collecting traffic fine: {str(e)}",
                     level=messages.ERROR,
                 )
+            return HttpResponseRedirect(request.path)
+            # ======================================================
+        # معالج ترحيل العقد محاسبيًا
+        # ======================================================
+        if "_post_rental" in request.POST:
+            try:
+                obj.refresh_from_db()
+                self._post_rental_from_admin(rental=obj)
+                self.message_user(
+                    request,
+                    "Rental posted successfully.",
+                    level=messages.SUCCESS,
+                )
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error posting rental: {str(e)}",
+                    level=messages.ERROR,
+                )
+
+            return HttpResponseRedirect(request.path)
+        
+
+        if "_cancel_rental" in request.POST:
+            try:
+                obj.refresh_from_db()
+                obj.cancel_rental(user=request.user)
+                self.message_user(
+                    request,
+                    "Rental cancelled successfully.",
+                    level=messages.SUCCESS,
+                )
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error while cancelling rental: {str(e)}",
+                    level=messages.ERROR,
+                )
+            return HttpResponseRedirect(request.path)
+
+        # ======================================================
+        # معالج بدء استبدال السيارة
+        # ======================================================
+        if "_start_replacement" in request.POST:
+            replacement_vehicle_id = request.POST.get("replacement_vehicle")
+            reason = request.POST.get("replacement_reason", "").strip()
+            notes = request.POST.get("replacement_notes", "").strip()
+
+            if not replacement_vehicle_id:
+                self.message_user(
+                    request,
+                    "Please select a replacement vehicle.",
+                    level=messages.ERROR,
+                )
+                return HttpResponseRedirect(request.path)
+
+            if not reason:
+                self.message_user(
+                    request,
+                    "Replacement reason is required.",
+                    level=messages.ERROR,
+                )
+                return HttpResponseRedirect(request.path)
+
+            try:
+                obj.refresh_from_db()
+                replacement_vehicle = Vehicle.objects.get(pk=replacement_vehicle_id)
+
+                VehicleReplacement.start_replacement(
+                    rental=obj,
+                    replacement_vehicle=replacement_vehicle,
+                    reason=reason,
+                    notes=notes,
+                    user=request.user,
+                )
+                self.message_user(
+                    request,
+                    "Vehicle replacement started successfully.",
+                    level=messages.SUCCESS,
+                )
+            except Vehicle.DoesNotExist:
+                self.message_user(request, "Selected vehicle was not found.", level=messages.ERROR)
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(request, f"Error starting replacement: {str(e)}", level=messages.ERROR)
+
+            return HttpResponseRedirect(request.path)
+
+        # ======================================================
+        # معالج إنهاء استبدال السيارة
+        # ======================================================
+        # ======================================================
+        # معالج إنهاء استبدال السيارة
+        # ======================================================
+        if "_end_replacement" in request.POST:
+            replacement_pk = request.POST.get("_end_replacement")
+            end_notes = request.POST.get("replacement_notes", "").strip()
+
+            try:
+                # حاشية عربية: ننعش العقد من قاعدة البيانات قبل التنفيذ
+                obj.refresh_from_db()
+
+                # حاشية عربية: نتأكد أن سجل الاستبدال يتبع لهذا العقد نفسه
+                replacement = obj.replacements.get(pk=replacement_pk)
+
+                # حاشية عربية: إنهاء الاستبدال من داخل الموديل مباشرة
+                replacement.end_replacement(
+                    user=request.user,
+                    notes=end_notes,
+                )
+
+                self.message_user(
+                    request,
+                    "Vehicle replacement ended. Original vehicle restored to customer.",
+                    level=messages.SUCCESS,
+                )
+            except VehicleReplacement.DoesNotExist:
+                self.message_user(
+                    request,
+                    "Active replacement record was not found for this rental.",
+                    level=messages.ERROR,
+                )
+            except ValidationError as e:
+                self.message_user(request, str(e), level=messages.ERROR)
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error ending replacement: {str(e)}",
+                    level=messages.ERROR,
+                )
+
             return HttpResponseRedirect(request.path)
 
         if "_return_vehicle" in request.POST:
@@ -1388,6 +1971,18 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
     status_label.short_description = "STATUS"
 
+    def online_reference_display(self, obj):
+        """عرض المرجع الخارجي في قائمة العقود — يبقى فارغًا إذا لم يُدخل"""
+        if obj.online_reference:
+            return format_html(
+                '<span style="font-family:monospace; font-size:11px; '
+                'background:#f1f5f9; padding:2px 6px; border-radius:4px;">{}</span>',
+                obj.online_reference
+            )
+        return mark_safe('<span style="color:#d1d5db;">—</span>')
+
+    online_reference_display.short_description = "REF #"
+
     def print_contract_button(self, obj):
         # --- حاشية: زر طباعة العقد ---
         if not obj or not obj.pk:
@@ -1418,6 +2013,15 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
         if obj.actual_return_date:
             return "Vehicle already returned."
 
+        # تحذير إذا كان هناك استبدال نشط
+        has_active = obj.replacements.filter(status='active').exists()
+        if has_active:
+            return mark_safe(
+                '<span style="color:#dc2626; font-weight:bold;">'
+                '⚠ Cannot return: Active vehicle replacement in progress. End it first.'
+                '</span>'
+            )
+
         return mark_safe(
             '<button type="submit" name="_return_vehicle" value="1" '
             'style="background:#16a34a; color:white; padding:10px 16px; '
@@ -1428,49 +2032,168 @@ class RentalAdmin(ExportActionModelAdmin, admin.ModelAdmin):
 
     return_vehicle_button.short_description = "Return Vehicle"
 
-    # 1. أضف اسم الإجراء إلى قائمة الأكشنز (إذا كان لديك القائمة مسبقاً أضفه إليها)
-    actions = ["post_selected_rentals"]
+    def cancel_rental_button(self, obj):
+        # زر إلغاء العقد داخل صفحة العقد
+        if not obj or not obj.pk:
+            return "Save the rental first to enable actions."
 
-    @admin.action(description="ترحيل العقود المحددة محاسبياً (Post Rentals)")
-    def post_selected_rentals(self, request, queryset):
-        posted_count = 0
+        if obj.status == "cancelled":
+            return "Rental already cancelled."
 
-        for rental in queryset:
-            if rental.accounting_state == "posted" or rental.journal_entry_id:
-                continue
+        if obj.status == "completed":
+            return "Cancel action is not available for completed rentals."
 
-            try:
-                self._post_rental_from_admin(rental=rental)
-                posted_count += 1
-            except Exception as e:
-                self.message_user(
-                    request,
-                    f"❌ خطأ في ترحيل العقد {rental.id}: {str(e)}",
-                    level=messages.ERROR,
-                )
-
-        if posted_count > 0:
-            self.message_user(
-                request,
-                f"✅ تم ترحيل {posted_count} عقد بنجاح إلى شجرة الحسابات.",
-                level=messages.SUCCESS,
+        if obj.accounting_state == "posted" or obj.journal_entry_id:
+            return mark_safe(
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cannot Cancel Posted Rental'
+                '</button>'
             )
 
-    change_form_template = "admin/rentals/rental/change_form.html"
+        has_active_replacement = obj.replacements.filter(status="active").exists()
+        if has_active_replacement:
+            return mark_safe(
+                '<span style="color:#dc2626; font-weight:bold;">'
+                '⚠ Cannot cancel: Active vehicle replacement in progress. End it first.'
+                '</span>'
+            )
 
-    def change_view(self, request, object_id, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-
-        obj = self.get_object(request, object_id)
-
-        if obj:
-            amounts = self._get_collection_amounts(obj)
-            remaining_balance = Decimal(obj.net_total or 0) - amounts["total"]
-
-            extra_context["summary_net_total"] = obj.net_total or 0
-            extra_context["summary_total_paid"] = amounts["total"]
-            extra_context["summary_remaining_balance"] = remaining_balance
-
-        return super().change_view(
-            request, object_id, form_url, extra_context=extra_context
+        blocking_payments = list(
+            obj.payments.filter(
+                amount_paid__gt=0
+            ).exclude(
+                refund_record__journal_entry__isnull=False
+            ).order_by("payment_date", "id")
         )
+        if blocking_payments:
+            # --- بناء روابط الدفعات المانعة ---
+            payment_links = []
+            for p in blocking_payments:
+                payment_url = reverse(
+                    "custom_admin:payments_payment_change", args=[p.pk]
+                )
+                payment_links.append(
+                    format_html(
+                        '<a href="{}" target="_blank" '
+                        'style="display:flex; align-items:center; gap:6px; '
+                        'padding:5px 10px; border-radius:6px; '
+                        'background:#f8fafc; border:1px solid #e2e8f0; '
+                        'color:#1d4ed8; text-decoration:none; font-size:12px; '
+                        'font-weight:600; white-space:nowrap;">'
+                        '<span style="color:#64748b;">#{}</span>'
+                        '<span>${}</span>'
+                        '<span style="color:#94a3b8; font-weight:400;">{}</span>'
+                        '</a>',
+                        payment_url,
+                        p.reference or p.pk,
+                        p.amount_paid,
+                        p.payment_date.strftime("%d-%m-%Y") if p.payment_date else "",
+                    )
+                )
+
+            links_html = "".join(str(l) for l in payment_links)
+
+            return mark_safe(
+                '<div style="display:flex; flex-direction:column; gap:6px;">'
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cannot Cancel: Posted Payment Exists'
+                '</button>'
+                '<div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">'
+                '<span style="font-size:10.5px; color:#64748b; font-weight:600; '
+                'white-space:nowrap;">Blocking payments:</span>'
+                + links_html +
+                '</div>'
+                '</div>'
+            )
+
+        if obj.deposit_journal_entry_id:
+            return mark_safe(
+                '<button type="button" disabled '
+                'style="background:#9ca3af; color:white; padding:10px 16px; '
+                'border:none; border-radius:6px; font-weight:bold; cursor:not-allowed;">'
+                'Cannot Cancel: Posted Deposit Exists'
+                '</button>'
+            )
+
+        return mark_safe(
+            '<button type="submit" name="_cancel_rental" value="1" '
+            'style="background:#ea580c; color:white; padding:10px 16px; '
+            'border:none; border-radius:6px; text-decoration:none; font-weight:bold; cursor:pointer;">'
+            'Cancel Rental'
+            '</button>'
+        )
+
+    cancel_rental_button.short_description = "Cancel Rental"
+
+    # ======================================================
+    # زر بدء استبدال السيارة
+    # ======================================================
+    def start_replacement_button(self, obj):
+        """
+        يظهر فقط عندما يكون العقد نشطًا ولا يوجد استبدال نشط.
+        يُصاحبه حقول replacement_vehicle / replacement_reason / replacement_notes.
+        """
+        if not obj or not obj.pk or obj.status != 'active':
+            return ""
+
+        return mark_safe(
+            '<div style="margin-bottom:6px; font-size:12px; color:#7c3aed; font-weight:bold;">'
+            '⬇ Fill in the fields below then click the button to start a vehicle replacement'
+            '</div>'
+            '<button type="submit" name="_start_replacement" value="1" '
+            'style="background:#7c3aed; color:white; padding:10px 16px; '
+            'border:none; border-radius:6px; font-weight:bold; cursor:pointer;">'
+            'Start Vehicle Replacement'
+            '</button>'
+        )
+
+    start_replacement_button.short_description = "Start Replacement"
+
+    # ======================================================
+    # زر إنهاء الاستبدال النشط
+    # ======================================================
+    def end_replacement_button(self, obj):
+        """
+        يظهر فقط عندما يوجد استبدال نشط.
+        يعرض معلومات السيارة البديلة الحالية.
+        """
+        if not obj or not obj.pk:
+            return ""
+
+        # select_related لأننا نصل لـ plate_number/brand/model مباشرةً
+        active_replacement = (
+            obj.replacements
+            .filter(status='active')
+            .select_related('replacement_vehicle', 'original_vehicle')
+            .first()
+        )
+        if not active_replacement:
+            return "No active replacement."
+
+        rv = active_replacement.replacement_vehicle
+        ov = active_replacement.original_vehicle
+
+        return mark_safe(
+            f'<div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; '
+            f'padding:12px 14px; margin-bottom:10px;">'
+            f'<div style="font-weight:bold; color:#92400e; margin-bottom:6px;">🔄 Active Replacement</div>'
+            f'<div style="font-size:13px; color:#78350f;">'
+            f'Original: <strong>{ov.plate_number}</strong> | '
+            f'Replacement: <strong>{rv.plate_number} ({rv.brand} {rv.model})</strong><br>'
+            f'Started: {active_replacement.started_at.strftime("%Y-%m-%d %H:%M")}'
+            f'</div>'
+            f'</div>'
+            f'<button type="submit" name="_end_replacement" value="{active_replacement.pk}" '
+            f'style="background:#7c3aed; color:white; padding:10px 16px; '
+            f'border:none; border-radius:6px; font-weight:bold; cursor:pointer;">'
+            f'End Vehicle Replacement (Return Original)'
+            f'</button>'
+        )
+
+    end_replacement_button.short_description = "End Active Replacement"
+
+    # ========================================

@@ -40,6 +40,21 @@ class EntryState(models.TextChoices):
     POSTED = "posted", "Posted"
 
 
+# العملات المدعومة في الإدخال، بينما المحاسبة النهائية تبقى بالدولار فقط.
+class CurrencyCode(models.TextChoices):
+    # الدولار الأمريكي - العملة الأساسية للنظام.
+    USD = "USD", "US Dollar"
+
+    # الدينار العراقي - عملة إدخال مقابلة.
+    IQD = "IQD", "Iraqi Dinar"
+
+    # الليرة السورية - عملة إدخال مقابلة.
+    SYP = "SYP", "Syrian Pound"
+
+    # الدرهم الإماراتي - عملة إدخال مقابلة.
+    AED = "AED", "UAE Dirham"
+
+
 # تصنيفات المصروفات الحالية.
 class ExpenseCategory(models.TextChoices):
     # صيانة المركبات أو الموجودات.
@@ -163,6 +178,58 @@ class JournalEntry(TimeStampedModel):
     # وقت الترحيل الفعلي للقيد.
     posted_at = models.DateTimeField(null=True, blank=True)
 
+    # =========================================================
+    # بيانات مرجعية عن أصل العملية بعملتها الأصلية
+    # =========================================================
+    # هذه الحقول لا تغيّر المحاسبة نفسها
+    # وإنما تحفظ "أصل العملية" للعرض داخل القيد والتقارير التفصيلية
+    # بينما debit / credit يبقيان بالدولار فقط
+
+    # العملة الأصلية التي أُدخلت بها العملية
+    original_currency_code = models.CharField(
+        max_length=3,
+        choices=CurrencyCode.choices,
+        default=CurrencyCode.USD,
+        verbose_name="Original Currency",
+    )
+
+    # المبلغ الأصلي كما أُدخل من الشاشة قبل التحويل إلى الدولار
+    original_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Original Amount",
+    )
+
+    # سعر الصرف المستخدم وقت العملية التاريخية
+    # هذا الحقل مرجعي ثابت بعد الترحيل
+    exchange_rate_to_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        verbose_name="Exchange Rate To USD",
+    )
+
+    # تاريخ سعر الصرف الفعلي المستخدم
+    # نفصله عن entry_date لأن بعض العمليات قد تعتمد تاريخ مستندها التشغيلي
+    exchange_rate_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Exchange Rate Date",
+    )
+
+    # القيمة التي تم اعتمادها محاسبيًا بالدولار
+    # هذه هي القيمة المرجعية التي يجب أن تطابق المبلغ المستخدم في القيد
+    posted_amount_usd = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Posted Amount USD",
+    )
+
     class Meta:
         # الأحدث فالأقدم بحسب التاريخ ثم المعرف.
         ordering = ["-entry_date", "-id"]
@@ -194,12 +261,64 @@ class JournalEntry(TimeStampedModel):
         # عند كون القيد مرحلًا يجب أن يحتوي على عناصر فعلية.
         if self.state == EntryState.POSTED:
             if not self.items.exists():
-                raise ValidationError("Posted entry must contain at least one journal item.")
+                raise ValidationError(
+                    "Posted entry must contain at least one journal item."
+                )
 
             # القيد المرحل يجب أن يكون متوازنًا.
             if not self.is_balanced:
                 raise ValidationError("Posted entry must be balanced.")
 
+        # =========================================================
+        # تحقق بيانات أصل العملية بالعملة الأصلية
+        # =========================================================
+        # هذه التحققات لا تفرض تعبئة الحقول على السجلات القديمة
+        # لكنها تمنع حفظ بيانات ناقصة إذا بدأنا باستخدام النظام الجديد
+        has_any_currency_snapshot = any(
+            value is not None and value != ""
+            for value in [
+                self.original_currency_code,
+                self.original_amount,
+                self.exchange_rate_to_usd,
+                self.exchange_rate_date,
+                self.posted_amount_usd,
+            ]
+        )
+
+        if has_any_currency_snapshot:
+            # إذا وُجد مبلغ أصلي يجب أن تكون هناك عملة أصلية
+            if self.original_amount is not None and not self.original_currency_code:
+                raise ValidationError(
+                    "Original currency is required when original amount is provided."
+                )
+
+            # إذا كانت العملة الأصلية ليست USD فيجب وجود سعر صرف
+            if (
+                self.original_currency_code
+                and self.original_currency_code != CurrencyCode.USD
+                and not self.exchange_rate_to_usd
+            ):
+                raise ValidationError(
+                    "Exchange rate is required for non-USD transactions."
+                )
+
+            # إذا كانت العملة الأصلية USD فيجب أن يكون سعر الصرف 1 عند تعبئته
+            if (
+                self.original_currency_code == CurrencyCode.USD
+                and self.exchange_rate_to_usd is not None
+                and self.exchange_rate_to_usd != Decimal("1")
+            ):
+                raise ValidationError("USD transactions must use exchange rate 1.")
+
+            # لا نسمح بقيم سالبة في البيانات المرجعية
+            if self.original_amount is not None and self.original_amount < 0:
+                raise ValidationError("Original amount cannot be negative.")
+
+            if self.exchange_rate_to_usd is not None and self.exchange_rate_to_usd <= 0:
+                raise ValidationError("Exchange rate must be greater than zero.")
+
+            if self.posted_amount_usd is not None and self.posted_amount_usd < 0:
+                raise ValidationError("Posted amount USD cannot be negative.")
 
     @transaction.atomic
     def post(self):
@@ -245,7 +364,6 @@ class JournalEntry(TimeStampedModel):
         self.state = EntryState.POSTED
         self.posted_at = locked_entry.posted_at or timezone.now()
 
-
     def save(self, *args, **kwargs):
         # توليد رقم القيد تلقائيًا عند أول حفظ فقط.
         if not self.entry_no:
@@ -288,7 +406,47 @@ class JournalItem(models.Model):
     # مبلغ المدين.
     debit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     # مبلغ الدائن.
+    # مبلغ الدائن.
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+
+    # مركز التحليل — السيارة المرتبطة بهذا السطر
+    vehicle = models.ForeignKey(
+        "vehicles.Vehicle",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="journal_items",
+        verbose_name="Vehicle (Analytical)",
+    )
+
+    # العملة الأصلية لهذا السطر — افتراضيًا دولار
+    # تُستخدم لعرض دفتر الأستاذ بالعملة الأصلية
+    original_currency_code = models.CharField(
+        max_length=3,
+        choices=CurrencyCode.choices,
+        default=CurrencyCode.USD,
+        verbose_name="Currency",
+    )
+
+    # المبلغ الأصلي كما أدخله المستخدم قبل التحويل إلى الدولار
+    # إذا كانت العملة USD يُملأ تلقائيًا من debit أو credit
+    original_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Original Amount",
+    )
+
+    # مركز التحليل — الفرع المرتبط بهذا السطر
+    branch = models.ForeignKey(
+        "branches.Branch",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="journal_items",
+        verbose_name="Branch (Analytical)",
+    )
 
     class Meta:
         # اسم مفرد داخل الإدارة.
@@ -312,7 +470,7 @@ class JournalItem(models.Model):
 
     def __str__(self):
         # عرض السطر مع كود الحساب وقيم المدين والدائن.
-        return f"{self.account.code} | D:{self.debit} | C:{self.credit}"
+        return ""
 
     def clean(self):
         # منع القيم السالبة.
@@ -328,18 +486,81 @@ class JournalItem(models.Model):
             raise ValidationError("A journal item cannot contain both debit and credit.")
 
         # الحساب التجميعي لا يقبل الترحيل المباشر.
-        if not self.account.is_postable:
-            raise ValidationError("Cannot post to a group account.")
+        if not self.account_id:
+            raise ValidationError({"account": "Account is required for each journal item."})
 
+        if not self.account.is_postable:
+            raise ValidationError({"account": "This account does not allow direct posting."})
+
+        # إذا كان القيد مرحلًا
         # إذا كان القيد مرحلًا فلا يسمح بتعديل أسطره.
         if self.journal_entry.state == EntryState.POSTED:
             raise ValidationError("Cannot modify items of a posted journal entry.")
 
     def save(self, *args, **kwargs):
-        # تنفيذ التحقق الكامل قبل الحفظ.
-        self.full_clean()
-        # متابعة الحفظ الافتراضي.
-        return super().save(*args, **kwargs)
+            # --- معالجة العملات غير الدولار ---
+            if (
+                self.original_currency_code
+                and self.original_currency_code != CurrencyCode.USD
+            ):
+                # إذا original_amount فارغ، نأخذه من debit أو credit (ما أدخله المستخدم بالعملة الأصلية)
+                if not self.original_amount:
+                    self.original_amount = (
+                        Decimal(self.debit) if self.debit and Decimal(self.debit) > 0
+                        else Decimal(self.credit)
+                    )
+            if (
+                self.original_currency_code
+                and self.original_currency_code != CurrencyCode.USD
+                and self.original_amount
+            ):
+                # استيراد محلي لتجنب الدوران بين التطبيقات
+                from apps.exchange_rates.services import (
+                    get_exchange_rate,
+                    ExchangeRateNotFound,
+                )
+                try:
+                    # جلب سعر الصرف من جدول ExchangeRate حسب تاريخ القيد الأب
+                    rate = get_exchange_rate(
+                        currency_code=self.original_currency_code,
+                        date=self.journal_entry.entry_date,
+                    )
+                    # حساب المعادل بالدولار بمنزلتين عشريتين
+                    usd_amount = (
+                        Decimal(self.original_amount) * rate
+                    ).quantize(Decimal("0.01"))
+
+                    # تطبيق المبلغ على الجانب الذي حدده المستخدم
+                    # المستخدم يضع أي قيمة > 0 في debit أو credit لتحديد الجانب
+                    # والنظام يستبدلها بالمبلغ المحوَّل إلى دولار
+                    if self.debit and Decimal(self.debit) > 0:
+                        self.debit = usd_amount
+                        self.credit = Decimal("0.00")
+                    elif self.credit and Decimal(self.credit) > 0:
+                        self.credit = usd_amount
+                        self.debit = Decimal("0.00")
+                    else:
+                        raise ValidationError(
+                            "يرجى تحديد الجانب: ضع أي قيمة في Debit أو Credit "
+                            "ليعرف النظام جهة القيد."
+                        )
+
+                except ExchangeRateNotFound as e:
+                    raise ValidationError(str(e))
+
+            # --- إذا كانت العملة USD نملأ original_amount آليًا للاتساق ---
+            elif self.original_currency_code == CurrencyCode.USD:
+                if not self.original_amount:
+                    self.original_amount = (
+                        self.debit
+                        if self.debit and Decimal(self.debit) > 0
+                        else self.credit
+                    )
+
+            # تنفيذ التحقق الكامل قبل الحفظ
+            self.full_clean()
+            # متابعة الحفظ الافتراضي
+            return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         # منع حذف الأسطر من قيد مرحل.

@@ -1,3 +1,4 @@
+#C:\car_rental_enterprise\apps\vehicle_usage\models.py
 from django.db import models, transaction, IntegrityError
 from django.core.exceptions import ValidationError
 from django.utils import timezone

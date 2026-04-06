@@ -17,7 +17,7 @@ class GeneralLedger(models.Model):
     """
 
     class Meta:
-        managed = False  # الأهم: منع إنشاء جدول في قاعدة البيانات
+        managed = True  # الأهم: منع إنشاء جدول في قاعدة البيانات
         verbose_name = "General Ledger"
         verbose_name_plural = "📖 General Ledger"
 
@@ -28,6 +28,6 @@ class IncomeStatement(models.Model):
     """
 
     class Meta:
-        managed = False
+        managed = True
         verbose_name = "Income Statement"
         verbose_name_plural = "📊 Income Statement"

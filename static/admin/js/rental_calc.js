@@ -65,6 +65,8 @@ window.addEventListener('load', function () {
             let deposit = parseFloat($('#id_deposit_amount').val()) || 0;
             let fines = parseFloat($('#id_traffic_fines').val()) || 0;
             let damageFees = parseFloat($('#id_damage_fees').val()) || 0;
+            let babySeatFee = parseFloat($('#id_baby_seat_fee').val()) || 0;
+            let insuranceFee = parseFloat($('#id_insurance_fee').val()) || 0;
             let otherCharges = parseFloat($('#id_other_charges').val()) || 0;
 
             let start = parseDateTime(sDate, sTime);
@@ -90,7 +92,15 @@ window.addEventListener('load', function () {
 
                     // --- Net Total النهائي الظاهري ---
                     // --- يشمل الإيجار + الضريبة + المخالفات + الأضرار + الرسوم الأخرى + التأمين ---
-                    let finalTotal = base + vatAmount + fines + damageFees + otherCharges + deposit;
+                                        let finalTotal =
+                        base
+                        + vatAmount
+                        + fines
+                        + damageFees
+                        + babySeatFee
+                        + insuranceFee
+                        + otherCharges
+                        + deposit;
 
                     $('.field-net_total .readonly').text(finalTotal.toFixed(2));
                     updatePaymentSummaryLive();
@@ -245,7 +255,7 @@ window.addEventListener('load', function () {
         }
 
         function updatePaymentSummaryLive() {
-            ensurePaymentSummaryBox();
+            ensurePaymentSummaryBoxes();
 
             let netTotal = getNetTotalValue();
             let payments = getPaymentsTotal();
@@ -269,7 +279,7 @@ window.addEventListener('load', function () {
 $(document).on(
     'input change',
     // --- نراقب كل الحقول التي تؤثر على صافي العقد حتى يتحدث Net Total فورًا ---
-    '#id_start_date, #id_start_date_0, #id_start_date_1, #id_end_date, #id_end_date_0, #id_end_date_1, #id_daily_rate, #id_vat_percentage, #id_deposit_amount, #id_traffic_fines, #id_damage_fees, #id_other_charges',
+        '#id_start_date, #id_start_date_0, #id_start_date_1, #id_end_date, #id_end_date_0, #id_end_date_1, #id_daily_rate, #id_vat_percentage, #id_deposit_amount, #id_traffic_fines, #id_damage_fees, #id_baby_seat_fee, #id_insurance_fee, #id_other_charges',
     function () {
 
         // --- إعادة الحساب المباشر بمجرد أي تعديل ---
@@ -295,8 +305,70 @@ $(document).on(
         });
 
 
+        // ======================================================
+        // ميزة: إخفاء/إظهار حقل السائق الإضافي
+        // ======================================================
+        function toggleAdditionalDriverField() {
+            // --- نتحقق أننا داخل صفحة العقد ---
+            var $checkbox = $('#id_has_additional_driver');
+            if (!$checkbox.length) return;
+
+            var $driverRow = $('.field-additional_driver');
+            if (!$driverRow.length) return;
+
+            if ($checkbox.is(':checked')) {
+                $driverRow.show();
+            } else {
+                $driverRow.hide();
+
+                // --- مسح قيمة السائق الإضافي عند إخفاء الحقل ---
+                // --- نتعامل مع Django autocomplete (select2) ---
+                var $select = $driverRow.find('select');
+                if ($select.length) {
+                    // إذا كان select2 محمّلًا (autocomplete field)
+                    if (typeof $.fn.select2 !== 'undefined'
+                            && $select.hasClass('select2-hidden-accessible')) {
+                        $select.val(null).trigger('change');
+                    } else {
+                        $select.val('');
+                    }
+                }
+                $driverRow.find('input[type="text"]').val('');
+            }
+        }
+
+        // تطبيق عند تحميل الصفحة
+        toggleAdditionalDriverField();
+
+        // مراقبة التغيير على الـ checkbox
+        $(document).on('change', '#id_has_additional_driver', function () {
+            toggleAdditionalDriverField();
+        });
+
+        // ======================================================
+        // ميزة: تلميح بصري لقسم استبدال السيارة
+        // ======================================================
+        function styleReplacementSection() {
+            // --- نضيف border لتمييز قسم الاستبدال بصريًا ---
+            var $replacementFields = [
+                '.field-replacement_vehicle',
+                '.field-replacement_reason',
+                '.field-replacement_notes',
+                '.field-start_replacement_button',
+            ];
+
+            $replacementFields.forEach(function (selector) {
+                var $el = $(selector);
+                if ($el.length && !$el.hasClass('replacement-styled')) {
+                    $el.addClass('replacement-styled');
+                }
+            });
+        }
+
         // تشغيل أولي عند فتح الصفحة
         formatUI();
+        styleReplacementSection();
+        toggleAdditionalDriverField();
 
         if (isRentalFormPage()) {
             calculateNow();

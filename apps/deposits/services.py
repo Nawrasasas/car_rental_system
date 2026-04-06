@@ -176,7 +176,10 @@ def post_deposit_refund(*, refund: DepositRefund):
     # --- قفل سجل الإعادة مع سند التأمين المرتبط به لمنع التوازي الخاطئ ---
     locked_refund = (
         DepositRefund.objects.select_for_update()
-        .select_related("deposit", "deposit__rental",)
+        .select_related(
+            "deposit",
+            "deposit__rental",
+        )
         .get(pk=refund.pk)
     )
 
@@ -224,6 +227,17 @@ def post_deposit_refund(*, refund: DepositRefund):
         or f"Rental #{locked_deposit.rental_id}"
     )
 
+    # =========================================================
+    # أصل العملية المرجعي
+    # =========================================================
+    # حاليًا سند رد التأمين لا يملك حقول عملة مستقلة بعد
+    # لذلك نعتبره USD إلى أن نضيف دعم العملات على موديل DepositRefund نفسه
+    original_currency_code = "USD"
+    original_amount = amount
+    exchange_rate_to_usd = Decimal("1")
+    exchange_rate_date = refund_date
+    posted_amount_usd = amount
+
     # --- إنشاء القيد المحاسبي العكسي:
     # --- Dr 2110 Customer Deposit
     # --- Cr Cash/Bank
@@ -233,6 +247,14 @@ def post_deposit_refund(*, refund: DepositRefund):
         source_app="deposits",
         source_model="DepositRefund",
         source_id=locked_refund.id,
+        # =====================================================
+        # حفظ أصل العملية على رأس القيد
+        # =====================================================
+        original_currency_code=original_currency_code,
+        original_amount=original_amount,
+        exchange_rate_to_usd=exchange_rate_to_usd,
+        exchange_rate_date=exchange_rate_date,
+        posted_amount_usd=posted_amount_usd,
         lines=[
             {
                 "account": customer_deposit_account,
@@ -259,8 +281,8 @@ def post_deposit_refund(*, refund: DepositRefund):
         raise AccountingError("Concurrent posting detected for this deposit refund.")
 
     # --- تحديث حالة سند التأمين حسب الرصيد المتبقي ---
-# --- حاشية عربية: لم نعد نعتبر الـ refund حالة مستقلة داخل Deposit.status ---
-# --- الحالة الآن مشتقة فقط من وجود قيد قبض فعلي للتأمين نفسه ---
+    # --- حاشية عربية: لم نعد نعتبر الـ refund حالة مستقلة داخل Deposit.status ---
+    # --- الحالة الآن مشتقة فقط من وجود قيد قبض فعلي للتأمين نفسه ---
     new_status = (
         DepositStatus.RECEIVED
         if locked_deposit.journal_entry_id
@@ -316,7 +338,7 @@ def process_deposit_refund(refund_instance: DepositRefund, is_creation: bool = T
 
 
 @transaction.atomic
-def create_deposit_from_rental(*, rental: Rental):
+def create_deposit_from_rental(*, rental: Rental, method: str = None):
     # --- قفل العقد من قاعدة البيانات لمنع التكرار المتوازي ---
     locked_rental = (
         Rental.objects.select_for_update()
@@ -327,6 +349,9 @@ def create_deposit_from_rental(*, rental: Rental):
     amount = to_decimal(getattr(locked_rental, "deposit_amount", 0))
     if amount <= 0:
         return None
+
+    # --- تحديد طريقة الاستلام (نستخدم القيمة الممررة أو الافتراضية) ---
+    deposit_method = DepositMethod(method) if method else DepositMethod.CASH
 
     # --- نبحث أولًا هل يوجد Deposit مرتبط بهذا العقد ---
     existing_deposit = (
@@ -353,6 +378,12 @@ def create_deposit_from_rental(*, rental: Rental):
             )
             update_fields.append("reference")
 
+        # --- تحديث طريقة الاستلام فقط إذا لم يكن مرحّلًا بعد ---
+        if not existing_deposit.journal_entry_id and method:
+            if existing_deposit.method != deposit_method:
+                existing_deposit.method = deposit_method
+                update_fields.append("method")
+
         # --- لا نعتبره مقبوضًا إلا إذا كان له journal_entry فعلي ---
         desired_status = (
             DepositStatus.RECEIVED
@@ -376,7 +407,7 @@ def create_deposit_from_rental(*, rental: Rental):
         rental=locked_rental,
         amount=amount,
         deposit_date=deposit_date,
-        method=DepositMethod.CASH,
+        method=deposit_method,
         reference=generate_deposit_reference(deposit_date=deposit_date),
         status=DepositStatus.PENDING_COLLECTION,
         notes=f"Auto-created from rental contract {locked_rental.contract_number or locked_rental.pk}",

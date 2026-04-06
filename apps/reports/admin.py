@@ -235,7 +235,6 @@ class GeneralLedgerAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-
     def export_general_ledger_excel(self, ledger_data):
         wb = Workbook()
         ws = wb.active
@@ -247,29 +246,80 @@ class GeneralLedgerAdmin(admin.ModelAdmin):
         ws.append(["Opening Balance", float(ledger_data["opening_balance"] or 0)])
         ws.append([])
 
-        ws.append([
-            "Date",
-            "Entry No.",
-            "Description",
-            "Source",
-            "Debit",
-            "Credit",
-            "Running Balance",
-        ])
+        ws.append(
+            [
+                "Date",
+                "Entry No.",
+                "Description",
+                "Source",
+                # =====================================================
+                # بيانات أصل العملية - مرجعية للعرض فقط
+                # =====================================================
+                "Original Currency",
+                "Original Amount",
+                "Exchange Rate",
+                "Exchange Rate Date",
+                "Posted USD",
+                # =====================================================
+                # القيم المحاسبية الرسمية
+                # =====================================================
+                "Debit",
+                "Credit",
+                "Running Balance",
+            ]
+        )
 
         for line in ledger_data["transactions"]:
-            ws.append([
-                str(line["date"]) if line.get("date") else "",
-                line.get("entry_number", ""),
-                line.get("description", ""),
-                line.get("source_label", ""),
-                float(line.get("debit", 0) or 0),
-                float(line.get("credit", 0) or 0),
-                float(line.get("balance", 0) or 0),
-            ])
+            ws.append(
+                [
+                    str(line["date"]) if line.get("date") else "",
+                    line.get("entry_number", ""),
+                    line.get("description", ""),
+                    line.get("source_label", ""),
+                    line.get("original_currency_code", "") or "",
+                    (
+                        float(line.get("original_amount", 0) or 0)
+                        if line.get("original_amount") is not None
+                        else ""
+                    ),
+                    (
+                        float(line.get("exchange_rate_to_usd", 0) or 0)
+                        if line.get("exchange_rate_to_usd") is not None
+                        else ""
+                    ),
+                    (
+                        str(line.get("exchange_rate_date"))
+                        if line.get("exchange_rate_date")
+                        else ""
+                    ),
+                    (
+                        float(line.get("posted_amount_usd", 0) or 0)
+                        if line.get("posted_amount_usd") is not None
+                        else ""
+                    ),
+                    float(line.get("debit", 0) or 0),
+                    float(line.get("credit", 0) or 0),
+                    float(line.get("balance", 0) or 0),
+                ]
+            )
 
         ws.append([])
-        ws.append(["", "", "", "Closing Balance", "", "", float(ledger_data["closing_balance"] or 0)])
+        ws.append(
+            [
+                "",
+                "",
+                "",
+                "Closing Balance",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                float(ledger_data["closing_balance"] or 0),
+            ]
+        )
 
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -278,22 +328,38 @@ class GeneralLedgerAdmin(admin.ModelAdmin):
         wb.save(response)
         return response
 
+
     def ledger_dashboard(self, request):
         context = dict(self.admin_site.each_context(request))
         context["title"] = "General Ledger"
 
-        # Read GET parameters from the URL
         account_code = request.GET.get("account_code")
         start_date = request.GET.get("start_date")
         end_date = request.GET.get("end_date")
+        vehicle_id = request.GET.get("vehicle_id") or None
+        branch_id  = request.GET.get("branch_id") or None
+        if vehicle_id:
+            vehicle_id = vehicle_id.replace(",", "")
+        if branch_id:
+            branch_id = branch_id.replace(",", "")
+
+        # نمرر قوائم السيارات والفروع للـ template
+        from apps.vehicles.models import Vehicle
+        from apps.branches.models import Branch
+
+        context["vehicles"] = Vehicle.objects.order_by("plate_number")
+        context["branches"] = Branch.objects.order_by("name")
+        context["selected_vehicle"] = vehicle_id
+        context["selected_branch"] = branch_id
 
         if account_code:
             try:
-                # Call our service engine with user inputs
                 ledger_data = get_general_ledger(
                     account_code=account_code,
                     start_date=start_date if start_date else None,
                     end_date=end_date if end_date else None,
+                    vehicle_id=vehicle_id,
+                    branch_id=branch_id,
                 )
                 context["ledger_data"] = ledger_data
                 if request.GET.get("export") == "excel":

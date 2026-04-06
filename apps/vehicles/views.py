@@ -14,12 +14,6 @@ from rest_framework.response import Response
 from .models import Vehicle
 
 
-def vehicle_list(request):
-    # --- حاشية: هذه الشاشة القديمة تبقى كما هي ---
-    vehicles = Vehicle.objects.all()
-    return render(request, "vehicles/list.html", {"vehicles": vehicles})
-
-
 def vehicles_autocomplete(request):
     # --- حاشية: نُبقي autocomplete القديم حتى لا نكسره ---
     q = request.GET.get("q", "")
